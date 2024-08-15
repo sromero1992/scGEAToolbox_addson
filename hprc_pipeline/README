@@ -1,0 +1,27 @@
+this functions require h5_files directory and a metadata to retrieve the paths of a FLEX kit hirachy structure with cellRanger -multi.
+
+1.- copy_sc_data.sh will copy the data from where is sequenced and retrieve the h5 files from a FLEX directory hirachy.
+    copy_sc_data.sh requires manually setting up path0 to copy the data and the pools
+    path0 ---------> path containing the mapped data from cellRanger FLEX kit with
+    pools ---------> pools contained in the outs/per_sample_outs
+	These build e.g. /mnt/SCDC/Bumblebee/2024_Sato_Anestacia_CircadianRhythm_MouseBreastCancerTumors_Data/mapped_data/pool0/outs/per_sample_outs 
+    
+2.- metadata containing sample_id and grpid
+    sammple_id ----> directories containing the h5 files from a given sample
+    grpid----------> will generate the batch ids for each file
+
+3.- s1_processh5files.m will can annotate individual files and QC, but its deactivated.
+	 Define matlab path in this function, so it identifies where scgeatoolbox is located. 
+         note: this will keep separated mat files for each sample.
+         define in ~/.bashrc file the following command 
+         alias run_matlab='/opt/MATLAB/R2023b/bin/./matlab -nodisplay -nodesktop -r '
+         Execution: run_matlab s1_processh5files
+
+         after finishing, type exit to quit matlab terminal
+
+4.- s2_mergematfiles.m will merge the files found in mat_files location and keep the file name as batch name.
+         sce_merged.mat file will contain QC filtered sce merged files
+         TBA, all the rest of pre-process will be tested later 
+ 
+
+TODO bash script to wrap all these steps 
