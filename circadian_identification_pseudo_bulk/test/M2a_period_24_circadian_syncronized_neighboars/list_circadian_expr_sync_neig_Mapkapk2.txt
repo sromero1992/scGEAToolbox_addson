@@ -1,6 +1,0 @@
-Hsp90b1
-Rbm25
-Mapkapk2
-Sat1
-Ms4a6d
-Cd47
