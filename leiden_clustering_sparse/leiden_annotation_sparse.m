@@ -25,8 +25,10 @@ function sce = leiden_annotation_sparse(sce, species, method)
 
     % Set the Python environment (Python 3.11)
     % Windows format
-    %env_bin = 'C:\Users\ssromerogon\.conda\envs\scanpy_env_311\python.exe';
-    env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
+    env_bin = 'C:\Users\ssromerogon\.conda\envs\leiden_clustering\python.exe';
+    if ispc
+        env_bin = strrep(env_bin,"\","\\");
+    end
     % Linux format
     %env_bin = "/home/ssromerogon/packages/scanpy_env/bin/python3";
 
@@ -70,6 +72,9 @@ function sce = leiden_annotation_sparse(sce, species, method)
     python_executable = env_bin;  
     leiden_wd = which('leiden_annotation_sparse');
     leiden_wd = erase(leiden_wd,'leiden_annotation_sparse.m');
+    if ispc
+        leiden_wd = strrep(leiden_wd,"\","\\");
+    end
     python_script = strcat(leiden_wd, 'run_leiden.py');
 
     % Call the Python script with the adjacency matrix file as argument

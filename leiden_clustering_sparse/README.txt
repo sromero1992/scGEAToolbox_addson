@@ -22,5 +22,19 @@ PASTE in leiden_annotation_sparse.m
 20    env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
 
 
+ 
+
+ 
+ 
+open leiden_annotation_sparse.m in MATLAB and paste in line 29
+i.e. env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
+(Make sure to leave '\python.exe' at the end)
+Save file
+ 
+ 
 Usage:
-sce = leiden_annotation_sparse(sce,'knn','mouse')
+sce = leiden_annotation_sparse(sce,'mouse','knn');
+ 
+BUG: IT WILL FAIL ONCE, RUN AGAIN AND WILL WORK AFTER PYTHON ENVIRONMENT IS SET
+ 
+ 
