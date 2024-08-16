@@ -50,7 +50,9 @@ except Exception as e:
 
 # Perform Leiden clustering
 try:
-    partition = leidenalg.find_partition(graph, leidenalg.ModularityVertexPartition)
+    partition = leidenalg.find_partition(graph, 
+                                         leidenalg.ModularityVertexPartition)
+
 except Exception as e:
     print(f"Error in Leiden clustering: {e}")
     sys.exit(1)

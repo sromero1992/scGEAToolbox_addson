@@ -1,0 +1,11 @@
+name: leiden_clustering
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+  - numpy
+  - leidenalg
+  - igraph
+  - scipy

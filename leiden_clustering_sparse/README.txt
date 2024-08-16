@@ -1,0 +1,26 @@
+Installation: 
+conda env create -f environment.yml
+conda activate leiden_clustering
+
+
+ADD TO MATLAB PATH:  
+HOME -> Set Path -> Add Folder (select this leiden_clustering_sparse directory)
+
+
+Change python intepreter direction for matlab by:
+In Terminal write 'conda env list' and select the directory shown for 'leiden_clustering'. 
+EXAMPLE
+(base) PS C:\Users\selim\Documents\vs_code_working_dir> conda env list
+# conda environments:
+#
+base                     F:\Anaconda
+leiden_clustering        F:\Anaconda\envs\leiden_clustering
+scanpy_env            *  F:\Anaconda\envs\scanpy_env
+
+
+PASTE in leiden_annotation_sparse.m 
+20    env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
+
+
+Usage:
+sce = leiden_annotation_sparse(sce,'knn','mouse')
