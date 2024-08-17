@@ -107,10 +107,10 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta,  rm_low_conf, pe
         tmp_R0 = zeros(ngene, nzts);
 
         tmp_mesor = zeros(ngene, 1);
-        for igene = 1:ngene
-             prog = floor(igene/ngene*100);
-             textprogressbar(prog);
-        %parfor igene = 1:ngene
+        %for igene = 1:ngene
+        %     prog = floor(igene/ngene*100);
+        %     textprogressbar(prog);
+        parfor igene = 1:ngene
             % Gene index to work on from list
             ig = find(sce_sub.g == gene_list(igene));
         
@@ -124,8 +124,9 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta,  rm_low_conf, pe
             end 
 
             [tmp_acro(igene), tmp_amp(igene), tmp_T(igene), tmp_mesor(igene), tmp_p_value(igene)] = ...
-                            estimate_phaseR_Ftest(Xg_zts, time_step, period12);       
-
+                       estimate_phaseR_Ftest(Xg_zts, time_step, period12);       
+            %[tmp_acro(igene), tmp_amp(igene), tmp_T(igene), tmp_mesor(igene), tmp_p_value(igene)] = ...
+            %              estimate_phaseR_LRT(Xg_zts, time_step, period12); 
         end
         
         % Aggregate results from temporary arrays to the main arrays
@@ -171,7 +172,7 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta,  rm_low_conf, pe
         end
        
         % Sort by acrophase and amplitude to classify better
-        [T1, idx] = sortrows(T1,["pvalue","Acrophase","Abs_Amp"],...
+        [T1, idx] = sortrows(T1,["pvalue","Acrophase_24","Abs_Amp"],...
                                 {'ascend','ascend','descend'});
         
         T2 = T2(idx,:);
