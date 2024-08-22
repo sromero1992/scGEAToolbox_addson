@@ -1,13 +1,21 @@
-function  sce = leiden_annotation(sce, method, species)
-    % leiden_annotation computes leiden clustering interfaced from
+function sce = leiden_annotation_full(sce, species, method)
+    % sce_leiden_annotation computes leiden clustering interfaced from
     % python3.11 with Mutual Nearest Neighbors (MNN) or K-Nearest
     % Neighbors (KNN).
     % INPUT:
     % sce -------> SCE object 
     % method ----> Method  to find neighbors (mnn or knn)
+    % species ---> Species for annotation
     % OUTPUT:
-    % sce ------> sce object containing Leiden clusters and corresponding
-    %             annotation
+    % sce ------> SCE object containing Leiden clusters and corresponding annotation
+    % USAGE:
+    % sce = leiden_annotation_sparse(sce,'knn','mouse')
+    % 
+    % If no annotation wanted, then use
+    % sce = leiden_annotation_sparse(sce,'knn', [])
+    if nargin < 2; species = []; end
+    if nargin < 3; method = 'knn'; end
+
     species = lower(species);
     method = lower(method);
 
@@ -15,15 +23,22 @@ function  sce = leiden_annotation(sce, method, species)
     fprintf("Leiden annotation with method: %s \n", method);
 
     % Set the Python environment (Python 3.11)
-    % Windoes format
-    env_bin = 'C:\Users\ssromerogon\.conda\envs\scanpy_env_311\python.exe';
-    %env_bin = 'F:\Anaconda\envs\scanpy_env\python.exe';
+    % Windows format
+    env_bin = 'C:\Users\ssromerogon\.conda\envs\leiden_clustering\python.exe';
+    if ispc
+        env_bin = strrep(env_bin,"\","\\");
+    end
     % Linux format
     %env_bin = "/home/ssromerogon/packages/scanpy_env/bin/python3";
+
+    % Clear any existing Python environment to force reinitialization
     pe = pyenv('Version', env_bin);
-    
+
     % Check if the environment is loaded
-    if pe.Status == "NotLoaded"
+    if pe.Status ~= "Loaded"
+        fprintf("Reinitializing Python environment...\n");
+        pe = pyenv('Version', env_bin);
+        %pause(20);  % Optional: Wait for 1 second?
         % Load the environment by executing a simple Python command
         py.exec('import sys');
     end
@@ -31,33 +46,39 @@ function  sce = leiden_annotation(sce, method, species)
     % Display the environment details
     disp(pyenv);
     
+    % Construct the adjacency matrix
     switch method
         case 'mnn'
-            n_neighbors = 50; % 20, 30, 50 (the more neighbors, the less clusters)
-            adjX = adj_mat_construct(sce, 'mnn', n_neighbors);
+            n_neighbors = 50; % more neighbors produce fewer clusters
+            adjX = adj_mat_construc_sparse(sce, 'mnn', n_neighbors);
     
         case 'knn'
-            n_neighbors = 15; % 10, 15 % the less the neighbors produces more clusters
-            adjX = adj_mat_construct(sce, 'knn', n_neighbors);
+            n_neighbors = 15; % fewer neighbors produce more clusters
+            adjX = adj_mat_construct_sparse(sce, 'knn', n_neighbors);
 
         otherwise
             error('Unknown method: %s. Method should be either ''mnn'' or ''knn''.', method);
     end
     disp(size(adjX));
+    adjX = full(adjX);
     % Save the adjacency matrix to a text file
     adj_file = 'adjX.txt';
     writematrix(adjX, adj_file, 'Delimiter', 'tab');
-    %writematrix(adjX, adj_file, 'Delimiter', '\t', 'WriteMode', 'overwrite', 'Format', '%f');
     clear adjX;
 
     % Path to the Python executable and the script
     python_executable = env_bin;  
-    python_script = 'run_leiden.py';
-    
+    leiden_wd = which('leiden_annotation');
+    leiden_wd = erase(leiden_wd,'leiden_annotation.m');
+    if ispc
+        leiden_wd = strrep(leiden_wd,"\","\\");
+    end
+    python_script = strcat(leiden_wd, 'run_leiden_full.py');
+
     % Call the Python script with the adjacency matrix file as argument
     system_command = sprintf('%s %s %s', python_executable, python_script, adj_file );
     [status, cmdout] = system(system_command);
-
+   
     % Clean up the temporary adjacency matrix file
     if exist(adj_file, 'file')
         delete(adj_file);
@@ -72,14 +93,14 @@ function  sce = leiden_annotation(sce, method, species)
         % Load the clustering results
         clusters = jsondecode(fileread('clusters.json'));
     
-        delete('clusters.json')
+        delete('clusters.json');
     
-        disp("Parsing Leiden:")
+        disp("Parsing Leiden:");
         disp(cmdout);
     
         % Display the clustering results
-        nclus = length( unique(clusters) );
-        fprintf('Number Leiden clusters %d \n', nclus);
+        nclus = length(unique(clusters));
+        fprintf('Number of Leiden clusters: %d \n', nclus);
     end
 
     % Assign clustering results to the SCE object
@@ -87,12 +108,10 @@ function  sce = leiden_annotation(sce, method, species)
 
     % Embed cells and assign cell types
     tic;
-    %sce = sce.embedcells('umap3d', true, false, 3);
-    %rng('default');
-    sce = sce.embedcells('umap3d', true, false);
+    sce = sce.embedcells('umap3d', true, false, 3);
     if ~isempty(species)
         fprintf("Annotating species %s \n\n", species)
-        sce= sce.assigncelltype(species, false);
+        sce = sce.assigncelltype(species, false);
     end
     time_assign = toc;
     fprintf("Time for cell annotation and embedding: %f \n", time_assign);

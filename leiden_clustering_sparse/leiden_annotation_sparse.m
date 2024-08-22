@@ -13,7 +13,6 @@ function sce = leiden_annotation_sparse(sce, species, method)
     % 
     % If no annotation wanted, then use
     % sce = leiden_annotation_sparse(sce,'knn', [])
-
     if nargin < 2; species = []; end
     if nargin < 3; method = 'knn'; end
 
@@ -75,7 +74,7 @@ function sce = leiden_annotation_sparse(sce, species, method)
     if ispc
         leiden_wd = strrep(leiden_wd,"\","\\");
     end
-    python_script = strcat(leiden_wd, 'run_leiden.py');
+    python_script = strcat(leiden_wd, 'run_leiden_sparse.py');
 
     % Call the Python script with the adjacency matrix file as argument
     system_command = sprintf('%s %s %s', python_executable, python_script, adj_file );
