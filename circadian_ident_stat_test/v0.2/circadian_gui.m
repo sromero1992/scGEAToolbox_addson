@@ -218,7 +218,7 @@ function circadian_gui
 
         try
             % Call the sce_circ_phase_estimation function      
-            [T1, T2] = sce_circ_phase_estimation_ftest(sce, guiData.tmeta, ...
+            [T1, T2] = sce_circ_phase_estimation_stattest(sce, guiData.tmeta, ...
                                      true, period12, [], cust_cells);   
             % Display analysis results in a message box or other UI elements
             msgbox('Analysis completed.');

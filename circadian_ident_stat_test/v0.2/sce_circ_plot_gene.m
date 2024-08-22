@@ -14,7 +14,7 @@ function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, axHandl
     tval = t0:0.1:tf;
 
     % Compute circadian information for the custom gene and cell type
-    [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, false, period12, cust_gene, cust_cells);
+    [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, false, period12, cust_gene, cust_cells);
 
     % Find the specified gene in the results
     gene_idx = find(strcmp(T1.Genes, cust_gene));

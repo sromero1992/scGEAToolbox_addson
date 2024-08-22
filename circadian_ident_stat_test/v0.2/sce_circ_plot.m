@@ -31,7 +31,7 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12)
     tval = t0 : 0.1 : tf;
 
     % Compute circadian information for cust_cells
-    [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, plot_type == 1, period12, [], cust_cells);
+    [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, plot_type == 1, period12, [], cust_cells);
 
     disp("Final number of circadian genes: " + size(T1,1))
 
