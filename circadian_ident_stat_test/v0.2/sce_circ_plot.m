@@ -24,8 +24,10 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12)
     if nargin < 5 || isempty(period12); period12 = false; end
 
     % Define time variables
+    tmeta.times = sortrows(tmeta.times);
     t0 = tmeta.times(1);
     tint = mean(diff(tmeta.times));
+    disp("Time steps are : " + tint);
     tf = tmeta.times(end);
     t = t0 : tint : tf;
     tval = t0 : 0.1 : tf;

@@ -63,7 +63,7 @@ function circadian_gui
     function defineTmetaAndPlotCallback(~, ~)
         % Get unique batches from sce.c_batch_id
         batches = unique(sce.c_batch_id);
-
+    
         % Check the format of batches and convert accordingly
         if isnumeric(batches)
             old_labels = cellstr(num2str(batches)); % Convert numeric batches to strings
@@ -74,44 +74,97 @@ function circadian_gui
         else
             error('Unexpected format for batches.');
         end
-
+    
         % Create a new figure for tmeta definition
         tmetaFig = figure('Name', 'Define tmeta', 'Position', [150, 150, 500, 400]);
-
+    
         % Initialize table data with old_labels and empty new_labels and times
         num_batches = numel(old_labels);
         initial_data = cell(num_batches, 2);
         initial_data(:, 1) = old_labels; % Set old_labels
         initial_data(:, 2) = num2cell(zeros(num_batches, 1)); % Set times with default values
-
+    
         % Create a table UI to input new labels and times
         tmetaTable = uitable('Parent', tmetaFig, 'Position', [25, 75, 450, 250], ...
                              'Data', initial_data, ...
                              'ColumnName', {'Old Labels', 'Times'}, ...
                              'ColumnEditable', [false, true]);
-
-        % Button to confirm and save tmeta
-        uicontrol('Style', 'pushbutton', 'Position', [200, 25, 100, 30], ...
+    
+        % Button to save tmeta changes and update SCE
+        uicontrol('Style', 'pushbutton', 'Position', [60, 25, 100, 30], ...
                   'String', 'Save tmeta', 'Callback', @saveTmeta);
-
-        % Callback to save tmeta and close the window
+    
+        % Button to save the modified SCE object
+        uicontrol('Style', 'pushbutton', 'Position', [190, 25, 100, 30], ...
+                  'String', 'Save SCE', 'Callback', @saveNewSCE);
+    
+        % Button to close the tmeta definition window
+        uicontrol('Style', 'pushbutton', 'Position', [320, 25, 100, 30], ...
+                  'String', 'Close', 'Callback', @(~, ~) close(tmetaFig));
+    
+        % Callback to save tmeta and update the SCE object
         function saveTmeta(~, ~)
-            % Retrieve data from the table
+            % Retrieve the updated table data
             tableData = get(tmetaTable, 'Data');
             old_labels = tableData(:, 1); % This should be cell array of strings
             times = cell2mat(tableData(:, 2)); % Convert times from cell array to numeric
-
+    
             % Convert times to ZT labels
             new_labels = cell(numel(times), 1);
             for i = 1:numel(times)
-                new_labels{i} = sprintf('ZT%02d', times(i)); % Format times as ZT00, ZT03, etc.
+                if times(i) >= 0 
+                    new_labels{i} = sprintf('ZT%02d', times(i)); 
+                else 
+                    new_labels{i} = sprintf('%d', times(i)); 
+                end
             end
+    
+            % Convert to table and sort times (if not sorted)
+            tbl = table(old_labels, new_labels, times);
+            tbl = sortrows(tbl,'times');
+            guiData.tmeta = tbl;
 
-            % Convert to table
-            guiData.tmeta = table(old_labels, new_labels, times);
 
-            % Close the tmeta definition window
-            close(tmetaFig);
+            % Process to remove selected batches
+            rm_batch = ismember(guiData.tmeta.new_labels, '-1');
+            rm_batch = guiData.tmeta.old_labels(rm_batch);
+    
+            for ib = 1:length(rm_batch)
+                % Use pre-selected batches to remove
+                idx_rm = find(sce.c_batch_id == rm_batch{ib});
+                % Rename batch 
+                sce.c_batch_id(idx_rm) = "-1";
+            end
+    
+            % Subsetting sce dynamically
+            idx = sce.c_batch_id ~= "-1";
+            sce_new = SingleCellExperiment(sce.X(:, idx), sce.g);
+            sce_new.c_cell_type_tx = sce.c_cell_type_tx(idx);
+            sce_new.c_cell_id = sce.c_cell_id(idx);
+            sce_new.c_batch_id = sce.c_batch_id(idx);
+    
+            % Replace the original sce with the new sce
+            clear sce; % Clear the old SCE object to save memory
+            sce = sce_new; % Assign the new SCE object to 'sce'
+            clear sce_new; % Clear the temporary new SCE object
+    
+            % Update the GUI with the new SCE object
+            assignin('base', 'sce', sce);
+            
+            % Notify user of successful update
+            disp('tmeta saved and SCE updated.');
+        end
+    
+        % Callback to save the new SCE object
+        function saveNewSCE(~, ~)
+            % Prompt user to select a file to save the new SCE object
+            [file, path] = uiputfile('*.mat', 'Save Modified SCE As');
+            if isequal(file, 0)
+                disp('User canceled the file save.');
+            else
+                save(fullfile(path, file), 'sce');
+                disp(['Modified SCE saved to ', fullfile(path, file)]);
+            end
         end
     end
 

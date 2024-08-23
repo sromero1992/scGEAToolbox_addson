@@ -7,8 +7,10 @@ function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, axHandl
     if nargin < 6 || isempty(axHandle); error('Axes handle must be specified.'); end
 
     % Define time variables
+    tmeta.times = sortrows(tmeta.times);
     t0 = tmeta.times(1);
     tint = mean(diff(tmeta.times));
+    disp("Time steps are : " + tint);
     tf = tmeta.times(end);
     t = t0:tint:tf;
     tval = t0:0.1:tf;

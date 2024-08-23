@@ -1,5 +1,5 @@
 function [p_adj] = bh_adjust_pvalues(pvals)
-    % Function to compute BH adjusted p-values
+    % Function to compute Benjamini-Hochberg (BH) adjusted p-values
     % INPUT:
     % pvals => Vector of p-values from F-test
     % OUTPUT:

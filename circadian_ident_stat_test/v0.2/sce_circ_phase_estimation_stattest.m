@@ -17,7 +17,9 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, per
     % Merge replicates for this analysis or just re-label
     batches = unique(sce.c_batch_id);
 
+    tmeta.times = sortrows(tmeta.times);
     time_cycle = max(tmeta.times);
+
     time_step = mean(diff(tmeta.times)); % Based on Sato data
     % Rename batches 
     for ib = 1:length(batches)
@@ -124,7 +126,7 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, per
             end 
 
             [tmp_acro(igene), tmp_amp(igene), tmp_T(igene), tmp_mesor(igene), tmp_p_value(igene)] = ...
-                       estimate_phaseR(Xg_zts, time_step, period12, 'LRT');       
+                       estimate_phaseR(Xg_zts, time_step, period12, 'Ftest');       
         end
         
         % Aggregate results from temporary arrays to the main arrays
