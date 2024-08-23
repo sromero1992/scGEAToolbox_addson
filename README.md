@@ -2,8 +2,6 @@
 Complementary functions for scGeatoobox from CaiLab
 
 Pulling the code via MATLAB terminal
-unzip('https://github.com/sromero1992/scGEAToolbox_addson/archive/main.zip');
-
 tic
 disp('Gerring scGEAToolbox_addson...')
 unzip('https://github.com/sromero1992/scGEAToolbox_addson/archive/main.zip');
