@@ -59,7 +59,6 @@ function circadian_gui
     % Create axes for plotting
     hPlotAxes = axes('Parent', hFig, 'Position', [0.4, 0.1, 0.55, 0.8]);
 
-    % Callback function to define tmeta interactively and store it in GUI data
     function defineTmetaAndPlotCallback(~, ~)
         % Get unique batches from sce.c_batch_id
         batches = unique(sce.c_batch_id);
@@ -75,20 +74,27 @@ function circadian_gui
             error('Unexpected format for batches.');
         end
     
-        % Create a new figure for tmeta definition
-        tmetaFig = figure('Name', 'Define tmeta', 'Position', [150, 150, 500, 400]);
-    
-        % Initialize table data with old_labels and empty new_labels and times
+        % Calculate the number of cells for each batch
         num_batches = numel(old_labels);
-        initial_data = cell(num_batches, 2);
+        cell_counts = zeros(num_batches, 1); % Initialize cell counts array
+        for i = 1:num_batches
+            cell_counts(i) = sum(strcmp(sce.c_batch_id, old_labels{i}));
+        end
+    
+        % Create a new figure for tmeta definition
+        tmetaFig = figure('Name', 'Define tmeta', 'Position', [150, 150, 550, 400]);
+    
+        % Initialize table data with old_labels, times, and cell_counts
+        initial_data = cell(num_batches, 3);
         initial_data(:, 1) = old_labels; % Set old_labels
         initial_data(:, 2) = num2cell(zeros(num_batches, 1)); % Set times with default values
+        initial_data(:, 3) = num2cell(cell_counts); % Set cell counts for each batch
     
-        % Create a table UI to input new labels and times
-        tmetaTable = uitable('Parent', tmetaFig, 'Position', [25, 75, 450, 250], ...
+        % Create a table UI to input new labels and times, with cell counts as non-editable
+        tmetaTable = uitable('Parent', tmetaFig, 'Position', [25, 75, 500, 250], ...
                              'Data', initial_data, ...
-                             'ColumnName', {'Old Labels', 'Times'}, ...
-                             'ColumnEditable', [false, true]);
+                             'ColumnName', {'Old Labels', 'Times', 'Cell Count'}, ...
+                             'ColumnEditable', [false, true, false]);  % Cell count column is non-editable
     
         % Button to save tmeta changes and update SCE
         uicontrol('Style', 'pushbutton', 'Position', [60, 25, 100, 30], ...
@@ -108,6 +114,7 @@ function circadian_gui
             tableData = get(tmetaTable, 'Data');
             old_labels = tableData(:, 1); % This should be cell array of strings
             times = cell2mat(tableData(:, 2)); % Convert times from cell array to numeric
+            cell_counts = cell2mat(tableData(:, 3)); % Cell counts remain unchanged
     
             % Convert times to ZT labels
             new_labels = cell(numel(times), 1);
@@ -121,27 +128,51 @@ function circadian_gui
     
             % Convert to table and sort times (if not sorted)
             tbl = table(old_labels, new_labels, times);
-            tbl = sortrows(tbl,'times');
-            guiData.tmeta = tbl;
-
-
+            tbl = sortrows(tbl, 'times');
+            guiData.tmeta = tbl; % Update GUI data
+    
             % Process to remove selected batches
             rm_batch = ismember(guiData.tmeta.new_labels, '-1');
             rm_batch = guiData.tmeta.old_labels(rm_batch);
-    
+        
             for ib = 1:length(rm_batch)
                 % Use pre-selected batches to remove
-                idx_rm = find(sce.c_batch_id == rm_batch{ib});
+                idx_rm = find(strcmp(sce.c_batch_id, rm_batch{ib}));
                 % Rename batch 
                 sce.c_batch_id(idx_rm) = "-1";
             end
     
             % Subsetting sce dynamically
-            idx = sce.c_batch_id ~= "-1";
+            idx = ~strcmp(sce.c_batch_id, "-1");
             sce_new = SingleCellExperiment(sce.X(:, idx), sce.g);
             sce_new.c_cell_type_tx = sce.c_cell_type_tx(idx);
             sce_new.c_cell_id = sce.c_cell_id(idx);
             sce_new.c_batch_id = sce.c_batch_id(idx);
+    
+            % Merge the new labels that are the same
+            [unique_labels, ~, label_idx] = unique(guiData.tmeta.new_labels);
+            for i = 1:length(unique_labels)
+                current_label = unique_labels{i};
+                % Find indices in the new SCE that match this new label
+                merge_idx = ismember(sce_new.c_batch_id, guiData.tmeta.old_labels(label_idx == i));
+                % Update batch ID with the merged label
+                sce_new.c_batch_id(merge_idx) = current_label;
+            end
+    
+            % Update the tmeta with the new old_labels (now as new_labels)
+            unique_new_labels = unique(guiData.tmeta.new_labels);  % Get unique new labels after merging
+            updated_times = zeros(length(unique_new_labels), 1); % Initialize updated times
+            updated_counts = zeros(length(unique_new_labels), 1); % Initialize updated cell counts
+    
+            for i = 1:length(unique_new_labels)
+                % Get index of the old label corresponding to the unique new label
+                idx_old_label = find(strcmp(guiData.tmeta.new_labels, unique_new_labels{i}), 1);
+                updated_times(i) = guiData.tmeta.times(idx_old_label); % Assign corresponding times
+                updated_counts(i) = cell_counts(idx_old_label); % Keep cell counts consistent
+            end
+            
+            updatedData = [unique_new_labels, num2cell(updated_times), num2cell(updated_counts)];
+            set(tmetaTable, 'Data', updatedData);  % Update the data in the table
     
             % Replace the original sce with the new sce
             clear sce; % Clear the old SCE object to save memory
@@ -150,7 +181,7 @@ function circadian_gui
     
             % Update the GUI with the new SCE object
             assignin('base', 'sce', sce);
-            
+    
             % Notify user of successful update
             disp('tmeta saved and SCE updated.');
         end
@@ -167,6 +198,7 @@ function circadian_gui
             end
         end
     end
+
 
     % Callback function for Plot Gene button
     function plotGeneCallback(~, ~)
@@ -188,8 +220,9 @@ function circadian_gui
         end
     
         % Create and display waitbar
-        hWaitbar = waitbar(0, 'Plotting Gene...');
-    
+        %hWaitbar = waitbar(0, 'Plotting Gene...');
+        disp("Working on Plot Gene...")
+
         % Suppress warnings related to directory creation
         warningState = warning('query', 'MATLAB:mkdir:DirectoryExists');
         warning('off', 'MATLAB:mkdir:DirectoryExists');
@@ -209,7 +242,9 @@ function circadian_gui
         end
     
         % Close the waitbar
-        close(hWaitbar);
+        %close(hWaitbar);
+        disp("Finished Plot Gene")
+
     
         % Restore the warning state
         warning(warningState);
@@ -230,7 +265,8 @@ function circadian_gui
         end
 
         % Create and display waitbar
-        hWaitbar = waitbar(0, 'Plotting Genes...');
+        %hWaitbar = waitbar(0, 'Plotting Genes...');
+        disp("Working on Plot Genes...")
 
         % Suppress warnings related to directory creation
         warningState = warning('query', 'MATLAB:mkdir:DirectoryExists');
@@ -248,7 +284,9 @@ function circadian_gui
         end
 
         % Close the waitbar
-        close(hWaitbar);
+        %close(hWaitbar);
+        disp("Finished Plot Genes!")
+
 
         % Restore the warning state
         warning(warningState);
@@ -267,7 +305,9 @@ function circadian_gui
         end
 
         % Create and display waitbar
-        hWaitbar = waitbar(0, 'Analyzing...');
+        %hWaitbar = waitbar(0, 'Analyzing...');
+        disp("Working on Plot Genes...")
+
 
         try
             % Call the sce_circ_phase_estimation function      
@@ -283,7 +323,9 @@ function circadian_gui
         end
 
         % Close the waitbar
-        close(hWaitbar);
+        %close(hWaitbar);
+        disp("Finished Plot Genes...")
+
     end
 
     % Function to load sce data (customize as needed)
