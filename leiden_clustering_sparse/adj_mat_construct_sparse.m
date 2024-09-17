@@ -21,9 +21,9 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
     % X in cells by genes basis and normalize/scale
     X = sce.X; 
     % This can be turned off for RNA+ATAC
-    X = sc_norm(X,'type','libsize');
-    X = log1p(X)';
-    %X = X';
+    %X = sc_norm(X,'type','libsize');
+    %X = log1p(X)';
+    X = X';
 
     % Perform PCA up to top 50 components
     %X = svdpca(X, 50, 'random'); % Actually faster but looks different...
@@ -45,8 +45,6 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
     time_sim = toc;
     fprintf("Time for similarity: %f \n", time_sim);
     
-
-
     tic;
     % Define adjacency matrix
     sim_size = size( simX);
