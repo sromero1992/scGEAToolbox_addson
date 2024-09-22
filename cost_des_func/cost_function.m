@@ -1,0 +1,132 @@
+
+X = sce.X(1:100,:);
+ng = size(X, 1);
+nc = size(X, 2);
+%D = pdist2(X, X, "euclidean"); 
+%D = pdist2(X, X, "seuclidean"); 
+nbatch = 10;
+nblock = ceil(ng / nbatch);
+tic;
+%nblock = floor(ng/nbatch);
+MI_mat = zeros(ng, ng);
+textprogressbar(0);
+for iblock = 1:nblock
+    ibeg = 1 + (iblock - 1)*nbatch;
+    iend = min( iblock*nbatch, ng);
+    for jblock = iblock:nblock
+        jbeg = 1 + (jblock - 1)*nbatch;
+        jend = min( jblock*nbatch, ng);
+        if iblock == jblock
+            mode = 1;
+        else
+            mode = 2; 
+        end
+        MI_mat(ibeg:iend, jbeg:jend) = ...
+            MI_const_block( X(ibeg:iend, :), X(jbeg:jend, :), mode );
+
+    end
+    textprogressbar((iblock)/nblock*100);
+end
+mi_time = toc;
+fprintf("MI time %f \n", mi_time);
+
+%imagesc(MI_mat(100:110 ,1:10))
+
+% Initialize Coulomb energy matrix
+Ecoul = zeros(ng, ng);
+eps = 0.01;
+textprogressbar(0);
+tic;
+
+% Transpose X beforehand for better slicing in parfor
+X = X';  % Now, X has dimensions (nc, ng) instead of (ng, nc)
+MI_mat = MI_mat';
+% Loop over gene blocks
+for iblock = 1:nblock
+    ibeg = 1 + (iblock - 1) * nbatch;
+    iend = min(iblock * nbatch, ng);
+    
+    X_block1 = X(:, ibeg:iend);  % Now working with rows after transpose
+    for jblock = iblock:nblock
+        jbeg = 1 + (jblock - 1) * nbatch;
+        jend = min(jblock * nbatch, ng);
+        
+        X_block2 = X(:, jbeg:jend);  % Now working with rows after transpose
+        
+        % Check if we're working with diagonal blocks
+        isDiagonal = (iblock == jblock);
+        
+        % Call the function to compute the Coulomb energy block
+        %Ecoul_block = CoulombEnergyBlock(X_block1, X_block2, MI_mat(ibeg:iend, jbeg:jend), eps, isDiagonal);
+        
+
+    % Compute the Coulomb energy for a block of genes
+    ng1 = size(X_block1, 2);  % Number of genes in block 1 (columns)
+    ng2 = size(X_block2, 2);  % Number of genes in block 2 (columns)
+    nc = size(X_block1, 1);   % Number of cells (rows)
+
+    % Initialize the block for Coulomb energy
+    Ecoul_block = zeros(ng1, ng2);
+    MI_block = MI_mat(ibeg:iend, jbeg:jend);
+    % Parallel loop over block 1 (genes in block 1)
+    if isDiagonal
+        parfor ig = 1:ng1
+            e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc;  % Self-energy for ig
+            
+            % Temporary variable to avoid race conditions
+            Etmp = zeros(ng2, 1);
+            MItmp = MI_block(:, ig);
+
+            % Diagonal and upper triangular part
+            for jg = ig:ng2
+                diffv = X_block1(:, ig) - X_block2(:, jg);
+                
+                % if jg == ig
+                %     % Diagonal element
+                %     Etmp(jg) = -1.0 * (e1^2 + MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
+                % else
+                    % Upper triangular part
+
+                    e2 = dot(X_block1(:, ig), X_block2(:, jg)) / nc^2;
+                    %Etmp(jg) = 1.0 * (e1 * e2 - MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
+                    Etmp(jg) = 1.0 * (e1 * e2 - MItmp(jg)) / (sqrt(diffv' * diffv) + eps);
+
+                %end
+            end
+            
+            % Assign the computed values for ig to the corresponding row
+            Ecoul_block(ig, :) = Etmp;
+        end
+    else
+        parfor ig = 1:ng1
+            e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc;  % Self-energy for ig
+            
+            % Temporary variable to avoid race conditions
+            Etmp = zeros(ng2, 1);
+            
+            % Off-diagonal block (X_block1 and X_block2 are different)
+            for jg = 1:ng2
+                diffv = X_block1(:, ig) - X_block2(:, jg);
+                e2 = dot(X_block1(:, ig), X_block2(:, jg)) / nc^2;
+                Etmp(jg) = 1.0 * (e1 * e2 - MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
+            end
+            
+            % Assign the computed values for ig to the corresponding row
+            Ecoul_block(ig, :) = Etmp(:);
+        end
+    end
+
+
+        % Update the corresponding part of the Ecoul matrix
+        Ecoul(ibeg:iend, jbeg:jend) = Ecoul_block;
+    end
+    textprogressbar((iblock) / nblock * 100);
+end
+%textprogressbar('Done');
+time_coul = toc;
+fprintf("Coul time %f \n", time_coul);
+
+
+Ecoul = sparse(Ecoul);
+
+[idx,C] = kmeans(X,3);

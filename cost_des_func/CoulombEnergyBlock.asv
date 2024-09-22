@@ -1,0 +1,43 @@
+function Ecoul_block = CoulombEnergyBlock(X_block1, X_block2, MI_block, eps, is_diagonal)
+    % Compute the Coulomb energy for a block of genes
+    ng1 = size(X_block1, 1);  % Number of genes in block 1
+    ng2 = size(X_block2, 1);  % Number of genes in block 2
+    nc = size(X_block1, 1);
+
+    % Efficient accessing
+    X_block1 = X_block1';
+    X_block2 = X_block2';
+
+    % Initialize the block for Coulomb energy
+    Ecoul_block = zeros(ng1, ng2);  
+    
+    % Parallel loop over block 1 (rows)
+    if isDiagonal
+        parfor ig = 1:ng1
+            e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc;  % Self-energy for ig
+            % Diagonal and upper triangular part
+            for jg = ig:ng2
+                diff = X_block1(:, jg) - X_block2(:, ig);
+                if ig == jg
+                    % Diagonal element
+                    Ecoul_block(ig, jg) = -1.0 * (e1^2 + MI_block(ig, jg)) / (sqrt(diff * diff') + eps);
+                else
+                    % Upper triangular part
+                    e2 = dot(X_block1(ig, :), X_block2(jg, :)) / nc^2;
+                    Ecoul_block(ig, jg) = 1.0 * (e1 * e2 - MI_block(ig, jg)) / (sqrt(diff * diff') + eps);
+                end
+            end
+        end
+    else
+        % Off-diagonal block (X1 and X2 are different)
+        parfor ig = 1:ng1
+            e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc;  % Self-energy for ig
+            % Diagonal and upper triangular part
+            e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc;  % Self-energy for ig
+        for jg = 1:ng2
+            diff = X_block1(ig, :) - X_block2(jg, :);
+            e2 = dot(X_block1(ig, :), X_block2(jg, :)) / nc^2;
+            Ecoul_block(ig, jg) = 1.0 * (e1 * e2 - MI_block(ig, jg)) / (sqrt(diff * diff') + eps);
+        end
+    end
+end
