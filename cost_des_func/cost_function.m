@@ -1,10 +1,10 @@
 
-X = sce.X(1:100,:);
+X = sce.X(1:5000,:);
 ng = size(X, 1);
 nc = size(X, 2);
 %D = pdist2(X, X, "euclidean"); 
 %D = pdist2(X, X, "seuclidean"); 
-nbatch = 10;
+nbatch = 500;
 nblock = ceil(ng / nbatch);
 tic;
 %nblock = floor(ng/nbatch);
@@ -29,8 +29,11 @@ for iblock = 1:nblock
 end
 mi_time = toc;
 fprintf("MI time %f \n", mi_time);
-
 %imagesc(MI_mat(100:110 ,1:10))
+% Exactly same as before
+MI_mat0 = MI_construction(X);
+
+
 
 % Initialize Coulomb energy matrix
 Ecoul = zeros(ng, ng);
@@ -59,66 +62,64 @@ for iblock = 1:nblock
         % Call the function to compute the Coulomb energy block
         %Ecoul_block = CoulombEnergyBlock(X_block1, X_block2, MI_mat(ibeg:iend, jbeg:jend), eps, isDiagonal);
         
+        % Compute the Coulomb energy for a block of genes
+        ng1 = size(X_block1, 2);  % Number of genes in block 1 (columns)
+        ng2 = size(X_block2, 2);  % Number of genes in block 2 (columns)
+        nc = size(X_block1, 1);   % Number of cells (rows)
+    
+        % Initialize the block for Coulomb energy
+        Ecoul_block = zeros(ng1, ng2);
+        MI_block = MI_mat(ibeg:iend, jbeg:jend);
+        % Parallel loop over block 1 (genes in block 1)
+        if isDiagonal
+            parfor ig = 1:ng1
+                e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc^2;  % Self-energy for ig
 
-    % Compute the Coulomb energy for a block of genes
-    ng1 = size(X_block1, 2);  % Number of genes in block 1 (columns)
-    ng2 = size(X_block2, 2);  % Number of genes in block 2 (columns)
-    nc = size(X_block1, 1);   % Number of cells (rows)
+                % Temporary variable to avoid race conditions
+                Etmp = zeros(ng2, 1);
+                MItmp = MI_block(:, ig);
 
-    % Initialize the block for Coulomb energy
-    Ecoul_block = zeros(ng1, ng2);
-    MI_block = MI_mat(ibeg:iend, jbeg:jend);
-    % Parallel loop over block 1 (genes in block 1)
-    if isDiagonal
-        parfor ig = 1:ng1
-            e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc;  % Self-energy for ig
-            
-            % Temporary variable to avoid race conditions
-            Etmp = zeros(ng2, 1);
-            MItmp = MI_block(:, ig);
+                % Diagonal and upper triangular part
+                for jg = ig:ng2
+                    diffv = X_block1(:, ig) - X_block2(:, jg);
 
-            % Diagonal and upper triangular part
-            for jg = ig:ng2
-                diffv = X_block1(:, ig) - X_block2(:, jg);
-                
-                % if jg == ig
-                %     % Diagonal element
-                %     Etmp(jg) = -1.0 * (e1^2 + MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
-                % else
-                    % Upper triangular part
+                     if jg == ig
+                         % Diagonal element
+                         Etmp(jg) = -1.0 * (e1^2 + MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
+                     else
+                        % Upper triangular part
 
+                        e2 = dot(X_block1(:, ig), X_block2(:, jg)) / nc^2;
+                        %Etmp(jg) = 1.0 * (e1 * e2 - MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
+                        Etmp(jg) = 1.0 * (e1 * e2 - MItmp(jg)) / (sqrt(diffv' * diffv) + eps);
+
+                    end
+                end
+
+                % Assign the computed values for ig to the corresponding row
+                Ecoul_block(ig, :) = Etmp;
+            end
+        else
+            parfor ig = 1:ng1
+                %e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc^2;  % Self-energy for ig
+                % Temporary variable to avoid race conditions
+                Etmp = zeros(ng2, 1);
+
+                % Off-diagonal block (X_block1 and X_block2 are different)
+                for jg = 1:ng2
+                    diffv = X_block1(:, ig) - X_block2(:, jg);
                     e2 = dot(X_block1(:, ig), X_block2(:, jg)) / nc^2;
-                    %Etmp(jg) = 1.0 * (e1 * e2 - MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
-                    Etmp(jg) = 1.0 * (e1 * e2 - MItmp(jg)) / (sqrt(diffv' * diffv) + eps);
+                    Etmp(jg) = 1.0 * (e2^2 - MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
+                end
 
-                %end
+                % Assign the computed values for ig to the corresponding row
+                Ecoul_block(ig, :) = Etmp(:);
             end
-            
-            % Assign the computed values for ig to the corresponding row
-            Ecoul_block(ig, :) = Etmp;
         end
-    else
-        parfor ig = 1:ng1
-            e1 = dot(X_block1(:, ig), X_block1(:, ig)) / nc;  % Self-energy for ig
-            
-            % Temporary variable to avoid race conditions
-            Etmp = zeros(ng2, 1);
-            
-            % Off-diagonal block (X_block1 and X_block2 are different)
-            for jg = 1:ng2
-                diffv = X_block1(:, ig) - X_block2(:, jg);
-                e2 = dot(X_block1(:, ig), X_block2(:, jg)) / nc^2;
-                Etmp(jg) = 1.0 * (e1 * e2 - MI_block(ig, jg)) / (sqrt(diffv' * diffv) + eps);
-            end
-            
-            % Assign the computed values for ig to the corresponding row
-            Ecoul_block(ig, :) = Etmp(:);
-        end
-    end
-
-
         % Update the corresponding part of the Ecoul matrix
         Ecoul(ibeg:iend, jbeg:jend) = Ecoul_block;
+        %Ecoul(ibeg:iend, jbeg:jend)  = CoulombEnergyBlock(X_block1, X_block2, MI_block, eps, isDiagonal);
+
     end
     textprogressbar((iblock) / nblock * 100);
 end
@@ -126,7 +127,6 @@ end
 time_coul = toc;
 fprintf("Coul time %f \n", time_coul);
 
+%Ecoul = sparse(Ecoul);
 
-Ecoul = sparse(Ecoul);
-
-[idx,C] = kmeans(X,3);
+%[idx,C] = kmeans(X,3);
