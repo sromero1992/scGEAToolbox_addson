@@ -1,7 +1,7 @@
 %addpath('../src-v0.2/');
 rng default;
 p = 10000; %observations
-n = 500; %features
+n = 50; %features
 
 % Source features (lineal)
 source_f_linear = [5, 11, 7];
@@ -18,6 +18,7 @@ nlinear_feat = union(source_f_nlinear, target_f_nlinear);
 [p,n,X,Yl,Ynl] = synthetic_data2(p, n, source_f_linear, target_f_linear, ...
                                   source_f_nlinear, target_f_nlinear);
 
+% imagesc(X(1:25,1:25))
 % % Features to extract
 % K = 12;
 % g = 1:n;
