@@ -61,6 +61,18 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     if any(idx)
         T = T(idx,: );
     end
+    % target_cells = [
+    %     "tuft",
+    %     "absorptive", 
+    %     "car1+ absorptive", 
+    %     "aqp8+ absorptive", 
+    %     "dcs",
+    %     "dendritic", 
+    %     "basal",         
+    %     "stem",          
+    %     "ta",
+    %     "transit-amplifying"
+    % ];
 
     % target_cells =[ "stem" "epithelial" "enterocytes" "tuft" ...
     %                     "goblet" "neurons" "enteroendocrine" "beta" ...
@@ -152,14 +164,15 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     clear idx idx2;
     
     % Get cluster ids
-    sce_tmp = sce_tmp.embedcells('umap3d', true, false, 3);
+    %sce_tmp = sce_tmp.embedcells('umap2d', true, false, 2);
 
-    cells_per_clus = 1000;
-    nclusters = round(sce_tmp.numcells/cells_per_clus);
-    clust_type = "kmeans";    
-    fprintf("Working on %d clusters %s \n",nclusters, clust_type);
-    sce_tmp = sce_tmp.clustercells(nclusters, clust_type, true);
-    
+    %cells_per_clus = 1000;
+    %nclusters = round(sce_tmp.numcells/cells_per_clus);
+    %clust_type = "kmeans";    
+    %fprintf("Working on %d clusters %s \n",nclusters, clust_type);
+    %sce_tmp = sce_tmp.clustercells(nclusters, clust_type, true);
+    sce_tmp = leiden_annotation_sparse(sce_tmp);
+
     ncell = size(X,2);
     cell_types = T.Var2;
     cell_types = erase(cell_types,"human");

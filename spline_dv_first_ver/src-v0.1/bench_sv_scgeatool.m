@@ -92,12 +92,12 @@ for ids = 1:nsamples
             continue;
         end
 
-        % Assing a boolean to normalize
-        [X] = sc_norm(X,'type','libsize');
-        [X2]= sc_norm(X2,'type','libsize');
+        % % Assing a boolean to normalize
+        % [X] = sc_norm(X,'type','libsize');
+        % [X2]= sc_norm(X2,'type','libsize');
     
         % Differential variability
-        [Tdv, Tig, influgenes] = sc_variability(X, X2, gl, gl, fname1, false);
+        [Tdv, Tig, influgenes] = sc_splinedv(X, X2, gl, gl, fname1, false);
       
         % Differential expression
         [Tde, Tup, Tdn] = sc_deg(X, X2, gl, 1, false);
