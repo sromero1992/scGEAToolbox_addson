@@ -19,9 +19,6 @@ function [T, Xsorted_completed, gsorted_completed, ...
         genelist = string(1:size(X, 1)); 
     end
     
-    % X = full(sce.X);
-    % genelist = sce.g;
-    % removenan = false;
     [lgu, dropr, lgcv, gsorted, Xsorted, ...
         removedgidx, removedT] = sc_genestat0(X, genelist, sortit, removenan); 
 

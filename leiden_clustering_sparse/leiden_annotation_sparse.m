@@ -109,7 +109,7 @@ function sce = leiden_annotation_sparse(sce, species, method)
 
     % Embed cells and assign cell types
     tic;
-    sce = sce.embedcells('umap3d', true, false, 3);
+    sce = sce.embedcells('umap2d', true, false, 2);
     %rng('default');
     %sce = sce.embedcells('tsne3d', true, false, 3);
     if ~isempty(species)

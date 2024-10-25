@@ -10,7 +10,6 @@ function [lgu, dropr, lgcv, genes, X, ...
     genelist=genelist(:);
     
     geneidx = 1:length(genelist);
-    
     dropr = 1 - sum(X > 0, 2) ./ size(X, 2);
     
     % m = X./sum(X);
