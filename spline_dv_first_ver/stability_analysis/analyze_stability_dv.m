@@ -1,4 +1,5 @@
-function final_table = analyze_stability_dv(ngenes, num_iterations, species, batch1, batch2, mat_file_path)
+function [final_table, table_good, table_bad ]= analyze_stability_dv(ngenes, num_iterations, ...
+                                                   species, batch1, batch2, mat_file_path)
     % Load the data and extract 'sce'
     data = load(mat_file_path);
     sce_tmp = data.sce;
@@ -119,21 +120,25 @@ function final_table = analyze_stability_dv(ngenes, num_iterations, species, bat
     bad_table = mainTable(:, bad_cols);    % Keep 'gene' and bad columns
 
     % Step 2: Transpose each table
-    good_table_transposed = array2table(good_table{:, 2:end}', 'VariableNames', good_table.gene);
-    bad_table_transposed = array2table(bad_table{:, 2:end}', 'VariableNames', bad_table.gene);
+    table_good = array2table(good_table{:, 2:end}', 'VariableNames', good_table.gene);
+    table_bad = array2table(bad_table{:, 2:end}', 'VariableNames', bad_table.gene);
 
     % Step 3: Add labels to identify them as strings
-    good_table_transposed.Type = repmat("good", height(good_table_transposed), 1);  % Use double quotes for strings
-    bad_table_transposed.Type = repmat("bad", height(bad_table_transposed), 1);    % Use double quotes for strings
+    table_good.Type = repmat("good", height(table_good), 1);  % Use double quotes for strings
+    table_bad.Type = repmat("bad", height(table_bad), 1);    % Use double quotes for strings
 
     % Combine both tables
-    final_table = [good_table_transposed; bad_table_transposed];
+    final_table = [table_good; table_bad];
 
     % Move 'Type' column to the start of the table
     final_table = final_table(:, [end, 1:end-1]);  % Move 'Type' to the first column
+    table_good = table_good(:, [end, 1:end-1]);  % Move 'Type' to the first column
+    table_bad = table_bad(:, [end, 1:end-1]);  % Move 'Type' to the first column
 
     % Save final table to CSV
-    writetable(final_table, 'stability_analysisDV.csv');
+    writetable(table_good, 'stability_analysisDV_good.csv');
+    writetable(table_bad, 'stability_analysisDV_bad.csv');
+    writetable(final_table, 'stability_analysisDV_final.csv');
 
     % Return the final table
     return
