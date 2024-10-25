@@ -5,7 +5,7 @@ function sce = randperm_batches2groups(sce, seed)
     if  nargin < 2 || isempty(seed)
         seed = 1234;
     end
-    fprintf('Random seed is %d \n', seed);
+    %fprintf('Random seed is %d \n', seed);
     rng(seed);
     % Get unique batch names and number of batches
     batch_names = unique(batch);
