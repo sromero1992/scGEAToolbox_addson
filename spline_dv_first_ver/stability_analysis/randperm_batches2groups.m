@@ -1,6 +1,17 @@
 function sce = randperm_batches2groups(sce, seed)
     % This function grabs batches and splits it in 1 and 2 with ~50% of
-    % random cell population
+    % random permutation to select the cell population
+    % Author: Selim Romero
+    % INPUT: 
+    % sce ------> SCE object defined by scGEAToolbox 
+    % seed -----> Random seed of preference (default 1234)
+    % OUTPUT:
+    % sce ------> Split of all available batches e.g. WT1, WT2, KO1 and KO2
+    % USAGE:
+    % do iter = 1:niter
+    %     sce = randperm_batches2groups(sce, iter);
+    % end
+    
     batch = sce.c_batch_id;
     if  nargin < 2 || isempty(seed)
         seed = 1234;

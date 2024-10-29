@@ -77,4 +77,3 @@ function timeStr = sec2timestr(sec)
         timeStr = sprintf('%ds', floor(s));
     end
 end
-

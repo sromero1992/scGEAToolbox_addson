@@ -1,4 +1,16 @@
 function sce = rm_non_inf_genes(sce, species)
+    % This function removes non informative genes by species, it finds
+    % Biomart_${species}_gene.mat defined in the toolbox that should be
+    % located under Documents that MATLAB can read.
+    % AUTHOR: Selim Romero
+    % INPUT: 
+    % sce -----> SCE object defined by scGEAToolbox
+    % species--> Species either 'mouse' or 'human'
+    % OUTPUT:
+    % sce -----> SCE object with removed non informative genes
+    % USAGE: 
+    % sce_tmp = rm_non_inf_genes(sce_tmp, 'mouse');
+    
     dir_file = strcat('Biomart_', species, '_genes.mat');
     
     % Define the root folder where you want to start searching (e.g., Documents folder)
