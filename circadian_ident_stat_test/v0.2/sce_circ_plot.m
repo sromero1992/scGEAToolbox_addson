@@ -165,7 +165,7 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12)
             icolor = 1;
             ii = 1;
             f = figure('visible','off');
-            gjdx = abs(T1.Acrophase_24 - T1.Acrophase_24(i)) < 0.05;
+            gjdx = abs(T1.Acrophase_24 - T1.Acrophase_24(i)) < 0.01;
             gjdx = find(gjdx)';
             colors = colormap(jet);
 

@@ -28,17 +28,30 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
 
     % Reshape the data from cell array to flat arrays for fitting
     ic = 0;
+    max_amp = -1000;
+    max_amp_old = -1000;
+    max_peak_t = 0;
     for it = 1:nzts
         % Assign expression data
         R(ic + 1:ic + icells(it)) = Xg_zts{it}(:);
+        meanval = mean( Xg_zts{it}(:), 'omitnan');
+        max_amp = max( max_amp, meanval);
         % Assign corresponding time points
         time_grid(ic + 1:ic + icells(it)) = (it - 1) * time_step;
         ic = ic + icells(it);
+        if max_amp > max_amp_old
+            max_amp_old = max_amp;
+            max_peak_t = (it - 1) * time_step;
+        end
     end
     
     % Null model (mean model)
     mean_model = mean(R); % Mean of all expression data
     SSR_null = sum((R - mean_model).^2); % Sum of squared residuals for the null model
+
+    % Guess amplitude
+    max_amp = 2*mean_model;
+    %fprintf("Max peak %f mean %f and amp %f \n", max_peak_t, mean_model, max_amp)
 
     % Define sine model based on the selected period (12 or 24 hours)
     if period12
@@ -46,19 +59,24 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
                      'coefficients', {'acro', 'amp', 'mesor'}, ...
                      'independent', {'t'});
         period = 12;
+        % Fit options for the sine model
+        options = fitoptions('Method', 'NonlinearLeastSquares', ...
+                             'Algorithm', 'Trust-Region', ...
+                             'Lower', [0, -Inf, 0], ...
+                             'Upper', [12, Inf, Inf], ...
+                             'StartPoint', [max_peak_t, max_amp, mean_model]);
     else
         ft = fittype('amp * cos(2*pi*(t - acro)/24) + mesor', ...
                      'coefficients', {'acro', 'amp', 'mesor'}, ...
                      'independent', {'t'});
         period = 24;
+        % Fit options for the sine model
+        options = fitoptions('Method', 'NonlinearLeastSquares', ...
+                             'Algorithm', 'Trust-Region', ...
+                             'Lower', [0, -Inf, 0], ...
+                             'Upper', [24, Inf, Inf], ...
+                             'StartPoint', [max_peak_t, max_amp, mean_model]);
     end
-    
-    % Fit options for the sine model
-    options = fitoptions('Method', 'NonlinearLeastSquares', ...
-                         'Algorithm', 'Trust-Region', ...
-                         'Lower', [-24, -Inf, -Inf], ...
-                         'Upper', [24, Inf, Inf], ...
-                         'StartPoint', [0, mean_model * 2, mean_model]);
     
     % Fitting the sine model to the data
     [fmdl, gof] = fit(time_grid, R, ft, options);

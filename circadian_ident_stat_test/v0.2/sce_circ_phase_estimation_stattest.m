@@ -1,5 +1,21 @@
-function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, period12, ...
+function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, period12, ...
                                     custom_genelist, custom_celltype)
+
+    % USAGE:
+    % times = [0 3 6 9 12 15 18 21]'; 
+    % old_labels = unique(sce.c_batch_id);
+    % % Convert times to ZT labels
+    % new_labels = cell(numel(times), 1);
+    % for i = 1:numel(times)
+    %     if times(i) >= 0
+    %         new_labels{i} = sprintf('ZT%02d', times(i));
+    %     else
+    %         new_labels{i} = sprintf('%d', times(i));
+    %     end
+    % end
+    % new_labels = string(new_labels);
+    % tmeta = table(old_labels, new_labels, times);
+    % [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta)
     tic;
     rng('default');
     
@@ -18,7 +34,7 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, per
     batches = unique(sce.c_batch_id);
 
     tmeta.times = sortrows(tmeta.times);
-    time_cycle = max(tmeta.times);
+    %time_cycle = max(tmeta.times);
 
     time_step = mean(diff(tmeta.times)); % Based on Sato data
     % Rename batches 
@@ -49,20 +65,26 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, per
         % Count matrix only for cell_type
         idx = find(sce.c_cell_type_tx == cell_type);
         X = sce.X(:, idx);
-        X = full(X);
-        fprintf("Processing cell type %s \n", cell_type);
-        % Normalizing count data for that cell type
-        X = sc_norm(X);
         X = sparse(X);
-        
-        % Gene genes and cells information
         g = sce.g;
+
+        fprintf("Processing cell type %s \n", cell_type);
+
+        % Gene genes and cells information
         cell_batch = sce.c_batch_id(idx);
         
         sce_sub = SingleCellExperiment(X, g);
         sce_sub.c_batch_id = cell_batch;
         sce_sub.c_cell_type_tx = sce.c_cell_type_tx(idx);
-        
+        sce_sub = sce_sub.qcfilter;
+        % Normalizing count data for that cell type
+        X = full(sce_sub.X);
+        X = sc_norm(X);
+        %X = sc_impute(X);
+        X = sparse(X);
+        sce_sub.X = X;
+        clear X;
+
         if isempty(custom_genelist)
             disp("Circadian analysis for all genes");
             gene_list = sce_sub.g;
@@ -105,7 +127,6 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, per
         tmp_R0 = zeros(ngene, nzts);
 
         tmp_mesor = zeros(ngene, 1);
-
         parfor igene = 1:ngene
             % Gene index to work on from list
             %ig = find(sce_sub.g == gene_list(igene));
@@ -124,7 +145,7 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, per
                     tmp_R0(igene, it) = NaN;
                 end
             end 
-
+            
             [tmp_acro(igene), tmp_amp(igene), tmp_T(igene), tmp_mesor(igene), tmp_p_value(igene)] = ...
                        estimate_phaseR(Xg_zts, time_step, period12, 'Ftest');       
         end
@@ -177,12 +198,12 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, per
         
         T2 = T2(idx, :);
         if period12
-            per_lab = "_period_12_";
+            per_label = "_period_12_";
         else
-            per_lab = "_period_24_";
+            per_label = "_period_24_";
         end
     
-        fname = strcat(cell_type, per_lab);
+        fname = strcat(cell_type, per_label);
         ftable_name = strcat(fname, "_macro_circadian_analysis.csv");
         writetable(T1, ftable_name);
         
@@ -198,7 +219,14 @@ function [T1, T2] = sce_circ_phase_estimation_ftest(sce, tmeta, rm_low_conf, per
                 info_p_type(:,3), info_p_type(:,4), info_p_type(:,5));
     T0.Properties.VariableNames = ["CellType", "NumCells", "NumGenes", "NumCircadian", ...
                                     "NumConfident", "NumNonConfident"];
-    fname = strcat(cell_type, "_summary_results.csv");
+    if isempty(custom_celltype) 
+        if ncell_types == 1
+            custom_celltype = cell_type_list; 
+        else
+            custom_celltype = 'non_specific';
+        end
+    end
+    fname = strcat(custom_celltype, "_summary_results.csv");
     writetable(T0, fname);
 
     disp("Processing complete. Total time elapsed: " + num2str(toc) + " seconds");
