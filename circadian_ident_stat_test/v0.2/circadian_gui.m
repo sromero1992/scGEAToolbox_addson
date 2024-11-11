@@ -56,6 +56,10 @@ function circadian_gui
     uicontrol('Style', 'pushbutton', 'Position', [50, 100, 150, 30], ...
               'String', 'Plot single Gene', 'Callback', @plotGeneCallback);
 
+    % Create checkbox for printing sc-data
+    hPrintSCdata = uicontrol('Style', 'checkbox', 'Position', [70, 70, 150, 20], ...
+                          'String', 'Print sc-data (single gene)');
+
     % Create axes for plotting
     hPlotAxes = axes('Parent', hFig, 'Position', [0.4, 0.1, 0.55, 0.8]);
 
@@ -206,7 +210,7 @@ function circadian_gui
         cust_cells = hCells.String{hCells.Value};
         period12 = hPeriod12.Value;
         gene = hGene.String{hGene.Value}; % Retrieve selected gene
-    
+        print_scdata = hPrintSCdata.Value;
         % Check if tmeta is defined
         if isempty(guiData.tmeta)
             errordlg('Please define tmeta before plotting.');
@@ -232,7 +236,7 @@ function circadian_gui
             cla(hPlotAxes);
     
             % Call the gene plotting function directly with the gene
-            sce_circ_plot_gene(sce, guiData.tmeta, cust_cells, period12, gene, hPlotAxes);
+            sce_circ_plot_gene(sce, guiData.tmeta, cust_cells, period12, gene, hPlotAxes, print_scdata);
     
             % Display completion message
             msgbox('Gene plotting completed.');

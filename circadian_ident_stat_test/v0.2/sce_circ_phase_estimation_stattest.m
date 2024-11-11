@@ -62,28 +62,21 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         if ~isempty(custom_celltype)
             if ~ismember(cell_type, custom_celltype); continue; end
         end
-        % Count matrix only for cell_type
-        idx = find(sce.c_cell_type_tx == cell_type);
-        X = sce.X(:, idx);
-        X = sparse(X);
-        g = sce.g;
 
         fprintf("Processing cell type %s \n", cell_type);
 
         % Gene genes and cells information
-        cell_batch = sce.c_batch_id(idx);
-        
-        sce_sub = SingleCellExperiment(X, g);
-        sce_sub.c_batch_id = cell_batch;
-        sce_sub.c_cell_type_tx = sce.c_cell_type_tx(idx);
+        idx = find(sce.c_cell_type_tx == cell_type);
+        sce_sub = sce.selectcells(idx);
         sce_sub = sce_sub.qcfilter;
+
         % Normalizing count data for that cell type
         X = full(sce_sub.X);
         X = sc_norm(X);
         %X = sc_impute(X);
         X = sparse(X);
         sce_sub.X = X;
-        clear X;
+        clear X idx;
 
         if isempty(custom_genelist)
             disp("Circadian analysis for all genes");
