@@ -28,6 +28,7 @@ function sce = leiden_annotation_sparse(sce, species, method)
     if ispc
         env_bin = strrep(env_bin,"\","\\");
     end
+    
     % Linux format
     %env_bin = "/home/ssromerogon/packages/scanpy_env/bin/python3";
 

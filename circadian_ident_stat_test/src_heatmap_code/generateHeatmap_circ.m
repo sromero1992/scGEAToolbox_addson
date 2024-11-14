@@ -17,7 +17,11 @@ function generateHeatmap_circ(sce, celltype, amp_pos, customName, circ, clus_met
     else
         Dwork = Dwork(Dwork.Amp < 0, :);
     end
-
+    if height( Dwork) <= 1
+        disp('Small number of predicted circadian genes...')
+        disp( height( Dwork ))
+        return;
+    end
     % Filter for circadian genes if specified
     if circ 
         classic_circ = ["arn" "bhlh" "clock" "cry" "dbp" "tef" "hlf" "raf" "erk" ...

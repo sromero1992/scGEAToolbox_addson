@@ -55,7 +55,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     % Number of time points
     nztps = length(unique(tmeta.new_labels));
     
-    info_p_type = zeros(ncell_types, 5);
+    info_p_type = zeros(ncell_types, 6);
     for icell_type = 1:ncell_types   
         % Extract count matrix for ith cell type
         cell_type = cell_type_list(icell_type);
@@ -178,6 +178,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
 
         % Remove low confidence genes?
         rm_nconfs_idx = T1.pvalue < 0.05;
+        num_adj_conf_g = sum( T1.pvalue_adj <0.05);
         num_conf_g = sum(rm_nconfs_idx);
         num_n_conf_g = sum(~rm_nconfs_idx);
         if rm_low_conf
@@ -204,14 +205,15 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         writetable(T2, ftable_name);
     
         info_p_type(icell_type, :) = [sce_sub.NumCells, sce_sub.NumGenes, ...
-                                       length(T1.Genes), num_conf_g, num_n_conf_g];
+                                       length(T1.Genes), num_conf_g, ...
+                                       num_n_conf_g, num_adj_conf_g];
         
     end
 
     T0 = table(cell_type_list, info_p_type(:,1), info_p_type(:,2), ...
-                info_p_type(:,3), info_p_type(:,4), info_p_type(:,5));
+                info_p_type(:,3), info_p_type(:,4), info_p_type(:,5), info_p_type(:, 6));
     T0.Properties.VariableNames = ["CellType", "NumCells", "NumGenes", "NumCircadian", ...
-                                    "NumConfident", "NumNonConfident"];
+                                    "NumConfident", "NumNonConfident", "NumAdjConfident"];
     if isempty(custom_celltype) 
         if ncell_types == 1
             custom_celltype = cell_type_list; 
