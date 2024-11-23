@@ -1,0 +1,21 @@
+name: python_utils_base
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+  - numpy=1.25.2
+  - pandas
+  - leidenalg
+  - igraph
+  - scipy
+  - seaborn
+  - scikit-learn
+  - matplotlib
+  - umap-learn
+  - bokeh
+  - scanpy
+  - ipykernel
+  - ipywidgets
+  - tqdm
+
