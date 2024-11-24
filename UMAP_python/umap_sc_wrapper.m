@@ -1,0 +1,117 @@
+function sce = umap_sc_wrapper(sce)
+    % leiden_annotation computes leiden clustering interfaced from
+    % python3.11 with Mutual Nearest Neighbors (MNN) or K-Nearest
+    % Neighbors (KNN).
+    % INPUT:
+    % sce -------> SCE object 
+    % OUTPUT:
+    % sce ------> sce object containing Leiden clusters and corresponding
+    %             annotation
+    % Usage:
+    % sce = leiden_annotation_sparse(sce,'knn','mouse')
+    % 
+    % If no annotation wanted, then use
+    % sce = leiden_annotation_sparse(sce,'knn', [])
+
+
+    %-----------------------------------------------------------------
+    % Set the Python environment (Python 3.11)
+    % Windows format
+    env_bin = 'F:\Anaconda\envs\scanpy_env_311\python.exe';
+    if ispc
+        env_bin = strrep(env_bin,"\","\\");
+    end
+    % Linux format
+    %env_bin = "/home/ssromerogon/packages/scanpy_env/bin/python3";
+    %-----------------------------------------------------------------
+    % Load python environment
+    % Clear any existing Python environment to force reinitialization
+    pe = pyenv('Version', env_bin);
+
+    % Check if the environment is loaded
+    if pe.Status ~= "Loaded"
+        fprintf("Reinitializing Python environment...\n");
+        pe = pyenv('Version', env_bin);
+        %pause(20);  % Optional: Wait for 1 second?
+        % Load the environment by executing a simple Python command
+        py.exec('import sys');
+    end
+    % Display the environment details
+    disp(pyenv);
+    %-----------------------------------------------------------------   
+    % Save main components to files
+    write_h5ad(sce);
+
+    %-----------------------------------------------------------------
+    % Execute python script
+    python_executable = env_bin;  
+    umap_wd = which('umap_sc_wrapper');
+    umap_wd = erase(umap_wd,'umap_sc_wrapper.m');
+    if ispc
+        umap_wd = strrep(umap_wd,"\","\\");
+    end
+    python_script = strcat(umap_wd, 'umap_sc.py');
+
+    %path_h5ad = pwd;
+    %path_h5ad = fullfile(path_h5ad, "data_tmp.h5ad");
+    file_h5ad = 'data_tmp.h5ad';
+    file_out = 'leiden_umap.csv';
+    npca = 50;
+    ndim = 2;
+    use_hvgs = false;
+    my_res = 1;
+    mt_pct = 5;
+    min_genes0 = 500;
+    min_cells0 = 15;
+    max_counts = 10000;
+
+    % Call the Python script with the adjacency matrix file as argument
+    system_command = sprintf('%s %s %s', python_executable, python_script, file_h5ad );
+    args = sprintf('%s %s', strcat('--output_csv ', file_out), ...
+                            strcat('--npca ', npca), ...
+                            strcat('--ndim ', ndim), ...
+                            strcat('--use_hvg ', use_hvgs), ...
+                            strcat('--my_res ', my_res), ...
+                            strcat('--mt_pct ', mt_pct), ...
+                            strcat('--min_genes0 ', min_genes0), ...
+                            strcat('--min_cells0 ', min_cells0), ...
+                            strcat('--max_counts ', max_counts) );
+
+    system_command = sprintf('%s %s', system_command, args);
+    [status, cmdout] = system(system_command);
+
+    % Clean up the temporary adjacency matrix file
+    if exist(file_h5ad, 'file')
+        delete(file_h5ad);
+    end    
+
+    % Check for errors
+    if status ~= 0
+        disp('Error running the Python script:');
+        disp(cmdout);
+        return;
+    else
+        % Load the clustering results and umap
+        mapping_clus = readtable(file_out);
+
+        %cell_ids = mapping_clus.cells;
+        %idx = ismember(sce.c_cell_id, cell_ids);
+        %sce = sce.selectcells(idx);
+        clusters = mapping_clus.leiden;
+        if ndim == 2
+            umap_s = [mapping_clus.UMAP_1; mapping_clus.UMAP_2];
+        elseif ndim ==3
+            umap_s = [mapping_clus.UMAP_1; mapping_clus.UMAP_2; mapping_clus.UMAP_3];           
+        end
+        sce.s = umap_s;
+        disp("Parsing umap function:")
+        disp(cmdout);
+    
+        % Display the clustering results
+        nclus = length( unique(clusters) );
+        fprintf('Number Leiden clusters %d \n', nclus);
+        sce.c_cluster_id = clusters + 1;
+
+    end
+
+end
