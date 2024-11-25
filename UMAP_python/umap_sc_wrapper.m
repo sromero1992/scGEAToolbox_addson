@@ -9,17 +9,17 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
     % Usage:
     % sce = umap_sc_wrapper(sce);
 
-    if isempty(ndim) || nargin < 2; ndim = 2; end
-    if isempty(use_hvgs) || nargin < 3; use_hvgs = false; end
-    if isempty(my_res) || nargin < 4; my_res = 1.0; end
+    if nargin < 2 || isempty(ndim); ndim = 2; end
+    if nargin < 3 || isempty(use_hvgs); use_hvgs = false; end
+    if nargin < 4 || isempty(my_res); my_res = 1.0; end
 
     file_h5ad = 'sce_data.h5ad';
     file_out = 'leiden_umap.csv';
     npca = 50;
-    mt_pct = 5.0;
-    min_genes0 = 500;
-    min_cells0 = 15;
-    max_counts = 100000.0;
+    mt_pct = 15.0;
+    min_genes0 = 200;
+    min_cells0 = 3;
+    max_counts = 1.0e7;
     algo_cluster = 'leidenalg';
 
     %-----------------------------------------------------------------
