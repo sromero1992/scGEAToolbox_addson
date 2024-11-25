@@ -13,7 +13,7 @@ function write_h5ad(sce)
     %-----------------------------------------------------------------
     % Set the Python environment (Python 3.11)
     % Windows format
-    env_bin = 'F:\Anaconda\envs\scanpy_env_311\python.exe';
+    env_bin = 'C:\Users\ssromerogon\.conda\envs\scanpy_env_311\python.exe';
     if ispc
         env_bin = strrep(env_bin,"\","\\");
     end
@@ -37,8 +37,8 @@ function write_h5ad(sce)
 
     % Execute python script
     python_executable = env_bin;  
-    %write_h5ad_wd = which('write_h5ad');
-    %write_h5ad_wd = erase(write_h5ad_wd,'write_h5ad.m');
+    write_h5ad_wd = which('write_h5ad');
+    write_h5ad_wd = erase(write_h5ad_wd,'write_h5ad.m');
     if ispc
         write_h5ad_wd = strrep(write_h5ad_wd,"\","\\");
     end

@@ -1,3 +1,4 @@
+import argparse
 import scanpy as sc
 import pandas as pd
 import warnings
@@ -11,7 +12,7 @@ def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
     Process single-cell data from a 10x HDF5 file and perform Leiden clustering with UMAP embedding.
 
     Args:
-        path_file (str): Path to the 10x HDF5 file.
+        path_file (str): Path to the h5ad file.
         output_csv (str): Path to save the Leiden and UMAP data as CSV.
         npca (int): Number of principal components to compute.
         ndim (int): Number of dimensions for UMAP (2 or 3).
@@ -27,10 +28,11 @@ def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
         None: Saves the clustering and UMAP data to the specified CSV file.
     """
     # Step 1: Load the data   
-    adata = sc.read_10x_h5(path_file)
+    adata = sc.read_h5ad(path_file)
 
     adata.var_names_make_unique()  # Ensure unique variable names
 
+    print("QC filtering data...")
     # Step 2: Annotate mitochondrial genes
     adata.var["mt"] = adata.var_names.str.startswith(("mt-", "MT-", "Mt-"))
 
@@ -43,24 +45,32 @@ def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
     adata = adata[adata.obs.pct_counts_mt < mt_pct, :].copy()
     adata = adata[adata.obs.total_counts < max_counts, :].copy()
 
+    print("Library size normalization and log1p transformation...")
     # Step 5: Normalize and log-transform
     sc.pp.normalize_total(adata, target_sum=1e6)
     sc.pp.log1p(adata)
 
-    # Step 6: Identify highly variable genes
-    sc.pp.highly_variable_genes(adata, n_top_genes=2000)
+    if use_hvg:
+        print("Computing HVGs...")
+        # Step 6: Identify highly variable genes
+        sc.pp.highly_variable_genes(adata, n_top_genes=2000)
+
 
     # Step 7: PCA (handles large datasets with `chunked=True` if needed)
     if adata.n_obs > 20000:
+        print("PCA analysis in chunks of 10000 cells...")
         sc.tl.pca(adata, n_comps=npca, use_highly_variable=use_hvg, chunked=True, chunk_size=10000, svd_solver="arpack")
     else:
+        print("PCA analysis...")
         sc.tl.pca(adata, n_comps=npca, use_highly_variable=use_hvg, chunked=False, svd_solver="arpack")
 
     # Step 8: Neighbors and UMAP
+    print("Computing nearest neighbors and UMAP with ndims =", ndim)    
     sc.pp.neighbors(adata, n_neighbors=15, n_pcs=npca)
     sc.tl.umap(adata, n_components=ndim)
 
     # Step 9: Leiden Clustering
+    print("Computing Leiden clusters...")    
     sc.tl.leiden(adata, flavor=algo_cluster, n_iterations=2, resolution=my_res)
 
     # Step 10: Extract clustering and UMAP data
@@ -70,12 +80,14 @@ def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
     # Step 11: Save to CSV
     if ndim == 2:
         data = pd.DataFrame({
+            "cell_id": adata.obs["cell_id"],
             "leiden": leiden,
             "UMAP_1": umap[:, 0],
             "UMAP_2": umap[:, 1]
         })
     elif ndim == 3:
         data = pd.DataFrame({
+            "cell_id": adata.obs["cell_id"],
             "leiden": leiden,
             "UMAP_1": umap[:, 0],
             "UMAP_2": umap[:, 1],
@@ -116,7 +128,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    process_h5_data(path_file,
+    process_h5_data(args.path_file,
         output_csv=args.output_csv,
         npca=args.npca,
         ndim=args.ndim,

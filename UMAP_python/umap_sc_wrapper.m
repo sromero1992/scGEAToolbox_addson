@@ -1,23 +1,32 @@
-function sce = umap_sc_wrapper(sce)
-    % leiden_annotation computes leiden clustering interfaced from
-    % python3.11 with Mutual Nearest Neighbors (MNN) or K-Nearest
-    % Neighbors (KNN).
+function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
+    % umap_sc_wrapper computes UMAP and leiden clusters interfaced from
+    % python3.11 scanpy library.
     % INPUT:
     % sce -------> SCE object 
+    % ndim ------> n-dimentions of UMAP
     % OUTPUT:
-    % sce ------> sce object containing Leiden clusters and corresponding
-    %             annotation
+    % sce ------> sce object containing Leiden clusters and UMAP
     % Usage:
-    % sce = leiden_annotation_sparse(sce,'knn','mouse')
-    % 
-    % If no annotation wanted, then use
-    % sce = leiden_annotation_sparse(sce,'knn', [])
+    % sce = umap_sc_wrapper(sce);
 
+    if isempty(ndim) || nargin < 2; ndim = 2; end
+    if isempty(use_hvgs) || nargin < 3; use_hvgs = false; end
+    if isempty(my_res) || nargin < 4; my_res = 1.0; end
+
+    file_h5ad = 'sce_data.h5ad';
+    file_out = 'leiden_umap.csv';
+    npca = 50;
+    mt_pct = 5.0;
+    min_genes0 = 500;
+    min_cells0 = 15;
+    max_counts = 100000.0;
+    algo_cluster = 'leidenalg';
 
     %-----------------------------------------------------------------
     % Set the Python environment (Python 3.11)
     % Windows format
-    env_bin = 'F:\Anaconda\envs\scanpy_env_311\python.exe';
+    %env_bin = 'F:\Anaconda\envs\scanpy_env_311\python.exe';
+    env_bin = 'C:\Users\ssromerogon\.conda\envs\scanpy_env_311\python.exe';
     if ispc
         env_bin = strrep(env_bin,"\","\\");
     end
@@ -39,7 +48,7 @@ function sce = umap_sc_wrapper(sce)
     % Display the environment details
     disp(pyenv);
     %-----------------------------------------------------------------   
-    % Save main components to files
+    % Save main components to h5ad
     write_h5ad(sce);
 
     %-----------------------------------------------------------------
@@ -52,33 +61,33 @@ function sce = umap_sc_wrapper(sce)
     end
     python_script = strcat(umap_wd, 'umap_sc.py');
 
-    %path_h5ad = pwd;
-    %path_h5ad = fullfile(path_h5ad, "data_tmp.h5ad");
-    file_h5ad = 'data_tmp.h5ad';
-    file_out = 'leiden_umap.csv';
-    npca = 50;
-    ndim = 2;
-    use_hvgs = false;
-    my_res = 1;
-    mt_pct = 5;
-    min_genes0 = 500;
-    min_cells0 = 15;
-    max_counts = 10000;
-
     % Call the Python script with the adjacency matrix file as argument
-    system_command = sprintf('%s %s %s', python_executable, python_script, file_h5ad );
-    args = sprintf('%s %s', strcat('--output_csv ', file_out), ...
-                            strcat('--npca ', npca), ...
-                            strcat('--ndim ', ndim), ...
-                            strcat('--use_hvg ', use_hvgs), ...
-                            strcat('--my_res ', my_res), ...
-                            strcat('--mt_pct ', mt_pct), ...
-                            strcat('--min_genes0 ', min_genes0), ...
-                            strcat('--min_cells0 ', min_cells0), ...
-                            strcat('--max_counts ', max_counts) );
+    % Base command
+    system_command = sprintf('%s %s %s', python_executable, python_script, file_h5ad);
+    
+    % Append arguments
+    args = sprintf('--output_csv %s --npca %d --ndim %d --my_res %.2f --mt_pct %.2f --min_genes0 %d --min_cells0 %d --max_counts %.2f --algo_cluster %s', ...
+                   file_out, ...
+                   npca, ...
+                   ndim, ...
+                   my_res, ...
+                   mt_pct, ...
+                   min_genes0, ...
+                   min_cells0, ...
+                   max_counts, ...
+                   algo_cluster);
+    
+    % Conditionally add `use_hvg` argument
+    if use_hvgs
+        args = sprintf('%s --use_hvg', args);
+    end
 
+    % Combine base command and arguments
     system_command = sprintf('%s %s', system_command, args);
+    
+    % Execute commands
     [status, cmdout] = system(system_command);
+    disp(cmdout)
 
     % Clean up the temporary adjacency matrix file
     if exist(file_h5ad, 'file')
@@ -94,24 +103,27 @@ function sce = umap_sc_wrapper(sce)
         % Load the clustering results and umap
         mapping_clus = readtable(file_out);
 
-        %cell_ids = mapping_clus.cells;
-        %idx = ismember(sce.c_cell_id, cell_ids);
-        %sce = sce.selectcells(idx);
+        mapping_clus.cell_id = string(mapping_clus.cell_id);
+        idx = ismember(sce.c_cell_id, mapping_clus.cell_id);
+        sce = sce.selectcells(idx);
+        % Display the clustering results
         clusters = mapping_clus.leiden;
+        nclus = length( unique(clusters) );
+        fprintf('Number Leiden clusters %d \n', nclus);
+        sce.c_cluster_id = clusters + 1;
+
+        % Overwritting UMAP
         if ndim == 2
-            umap_s = [mapping_clus.UMAP_1; mapping_clus.UMAP_2];
+            umap_s = [mapping_clus.UMAP_1, mapping_clus.UMAP_2];
+            sce.struct_cell_embeddings.umap2d = umap_s;
         elseif ndim ==3
-            umap_s = [mapping_clus.UMAP_1; mapping_clus.UMAP_2; mapping_clus.UMAP_3];           
+            umap_s = [mapping_clus.UMAP_1, mapping_clus.UMAP_2, mapping_clus.UMAP_3];
+            sce.struct_cell_embeddings.umap3d = umap_s;
         end
         sce.s = umap_s;
         disp("Parsing umap function:")
         disp(cmdout);
     
-        % Display the clustering results
-        nclus = length( unique(clusters) );
-        fprintf('Number Leiden clusters %d \n', nclus);
-        sce.c_cluster_id = clusters + 1;
-
     end
 
 end
