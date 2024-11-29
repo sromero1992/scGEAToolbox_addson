@@ -24,7 +24,8 @@ function sce = leiden_annotation_sparse(sce, species, method)
 
     % Set the Python environment (Python 3.11)
     % Windows format
-    env_bin = 'C:\Users\ssromerogon\.conda\envs\leiden_clustering\python.exe';
+    %env_bin = 'C:\Users\ssromerogon\.conda\envs\leiden_clustering\python.exe';
+    env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
     if ispc
         env_bin = strrep(env_bin,"\","\\");
     end
@@ -50,11 +51,13 @@ function sce = leiden_annotation_sparse(sce, species, method)
     switch method
         case 'mnn'
             n_neighbors = 100; % 20, 30, 50 (the more neighbors, the less clusters)
-            adjX = adj_mat_construct_sparse(sce, 'mnn', n_neighbors);
-    
+            %adjX = adj_mat_construct_sparse(sce, 'mnn', n_neighbors);
+            adjX = adj_mat_construct_sparse_blocked(sce, 'mnn', n_neighbors, 10000);
+
         case 'knn'
             n_neighbors = 15; % 10, 15, 20 % the less the neighbors produces more clusters
-            adjX = adj_mat_construct_sparse(sce, 'knn', n_neighbors);
+            %adjX = adj_mat_construct_sparse(sce, 'knn', n_neighbors);
+            adjX = adj_mat_construct_sparse_blocked(sce, 'knn', n_neighbors, 10000);
 
         otherwise
             error('Unknown method: %s. Method should be either ''mnn'' or ''knn''.', method);
@@ -110,7 +113,7 @@ function sce = leiden_annotation_sparse(sce, species, method)
 
     % Embed cells and assign cell types
     tic;
-    sce = sce.embedcells('umap2d', true, false, 2);
+    %sce = sce.embedcells('umap2d', true, false, 2);
     %rng('default');
     %sce = sce.embedcells('tsne3d', true, false, 3);
     if ~isempty(species)

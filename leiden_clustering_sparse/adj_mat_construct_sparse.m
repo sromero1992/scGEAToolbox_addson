@@ -18,7 +18,7 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
     end
 
     tic;
-    % X in cells by genes basis and normalize/scale
+    % X in cells by genes basis and normalize/scale (cells by genes mat)
     X = sce.X; 
     % This can be turned off for RNA+ATAC
     X = sc_norm(X,'type','libsize');
@@ -33,7 +33,7 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
     time_prep = toc;
     fprintf("Time for preparing data: %f \n", time_prep);
 
-    % Compute pairwise cosine similarity
+    % Compute pairwise similarity (sparse matrix input supported)
     tic;
     % Cosine similarity
     %simX = 1 - pdist2(X, X, 'cosine');
@@ -48,7 +48,8 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
     tic;
     % Define adjacency matrix
     sim_size = size( simX);
-    adjX = zeros(sim_size);
+    adjX = zeros( sim_size(1), sim_size(2));
+    %adjX = sparse( sim_size(1), sim_size(2));
 
     switch method
         case 'knn'
