@@ -1,63 +1,74 @@
 function sce = leiden_annotation_sparse(sce, species, method)
-    % leiden_annotation computes leiden clustering interfaced from
-    % python3.11 with Mutual Nearest Neighbors (MNN) or K-Nearest
-    % Neighbors (KNN).
+    % leiden_annotation_sparse: Computes Leiden clustering interfaced from Python
+    % with Mutual Nearest Neighbors (MNN) or K-Nearest Neighbors (KNN).
     % INPUT:
-    % sce -------> SCE object 
-    % method ----> Method  to find neighbors (mnn or knn)
+    % sce -------> SCE object
+    % method ----> Method to find neighbors ('mnn' or 'knn')
     % OUTPUT:
-    % sce ------> sce object containing Leiden clusters and corresponding
-    %             annotation
+    % sce ------> SCE object containing Leiden clusters and corresponding annotation
     % Usage:
-    % sce = leiden_annotation_sparse(sce,'knn','mouse')
+    % sce = leiden_annotation_sparse(sce, 'knn', 'mouse')
     % 
-    % If no annotation wanted, then use
-    % sce = leiden_annotation_sparse(sce,'knn', [])
+    % If no annotation is wanted, use
+    % sce = leiden_annotation_sparse(sce, 'knn', [])
     if nargin < 2; species = []; end
     if nargin < 3; method = 'knn'; end
 
     species = lower(species);
     method = lower(method);
 
-    fprintf("WARNING: sce object should be prior QC if desired... \n")
-    fprintf("Leiden annotation with method: %s \n", method);
+    fprintf("WARNING: sce object should be prior QC if desired...\n");
+    fprintf("Leiden annotation with method: %s\n", method);
 
     % Set the Python environment (Python 3.11)
-    % Windows format
     %env_bin = 'C:\Users\ssromerogon\.conda\envs\leiden_clustering\python.exe';
     env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
     if ispc
-        env_bin = strrep(env_bin,"\","\\");
+        env_bin = strrep(env_bin, "\", "\\");
     end
-    
     % Linux format
     %env_bin = "/home/ssromerogon/packages/scanpy_env/bin/python3";
 
-    % Clear any existing Python environment to force reinitialization
+    % Initialize the Python environment
     pe = pyenv('Version', env_bin);
-
-    % Check if the environment is loaded
     if pe.Status ~= "Loaded"
         fprintf("Reinitializing Python environment...\n");
         pe = pyenv('Version', env_bin);
-        %pause(20);  % Optional: Wait for 1 second?
-        % Load the environment by executing a simple Python command
         py.exec('import sys');
     end
-    
-    % Display the environment details
     disp(pyenv);
 
+    % Decide strategy for clustering based on memory
+    [totalRAM, availableRAM, ~] = check_memory();
+    mem_by_float = 8 / 1e9; % Memory per double-precision float (in GB)
+    estimate_mem = sce.NumCells^2 * mem_by_float; % Estimate memory required for adjacency matrix
+
+    % Determine if chunked strategy is needed
+    if estimate_mem >= 0.7 * availableRAM
+        fprintf("Chunked strategy... \n")
+        chunked_strategy = true;
+    else
+        fprintf("Full strategy... \n")
+        chunked_strategy = false;
+    end
+
+    % Select clustering method
     switch method
         case 'mnn'
-            n_neighbors = 100; % 20, 30, 50 (the more neighbors, the less clusters)
-            %adjX = adj_mat_construct_sparse(sce, 'mnn', n_neighbors);
-            adjX = adj_mat_construct_sparse_blocked(sce, 'mnn', n_neighbors, 10000);
+            n_neighbors = 100; % Larger neighbors -> fewer clusters
+            if chunked_strategy
+                adjX = adj_mat_construct_sparse_blocked(sce, 'mnn', n_neighbors, 10000);
+            else
+                adjX = adj_mat_construct_sparse(sce, 'mnn', n_neighbors);
+            end
 
         case 'knn'
-            n_neighbors = 15; % 10, 15, 20 % the less the neighbors produces more clusters
-            %adjX = adj_mat_construct_sparse(sce, 'knn', n_neighbors);
-            adjX = adj_mat_construct_sparse_blocked(sce, 'knn', n_neighbors, 10000);
+            n_neighbors = 15; % Smaller neighbors -> more clusters
+            if chunked_strategy
+                adjX = adj_mat_construct_sparse_blocked(sce, 'knn', n_neighbors, 10000);
+            else
+                adjX = adj_mat_construct_sparse(sce, 'knn', n_neighbors);
+            end
 
         otherwise
             error('Unknown method: %s. Method should be either ''mnn'' or ''knn''.', method);
@@ -65,62 +76,53 @@ function sce = leiden_annotation_sparse(sce, species, method)
 
     disp(size(adjX));
 
-    % Save the adjacency matrix to a text file
+    % Save adjacency matrix to file
     adj_file = 'adjX.txt';
     [i, j, val] = find(adjX);
     writematrix([i, j, val], adj_file, 'Delimiter', 'tab');
     clear adjX i j val;
-    
-    % Path to the Python executable and the script
-    python_executable = env_bin;  
+
+    % Path to Python script
+    python_executable = env_bin;
     leiden_wd = which('leiden_annotation_sparse');
-    leiden_wd = erase(leiden_wd,'leiden_annotation_sparse.m');
+    leiden_wd = erase(leiden_wd, 'leiden_annotation_sparse.m');
     if ispc
-        leiden_wd = strrep(leiden_wd,"\","\\");
+        leiden_wd = strrep(leiden_wd, "\", "\\");
     end
     python_script = strcat(leiden_wd, 'run_leiden_sparse.py');
 
-    % Call the Python script with the adjacency matrix file as argument
-    system_command = sprintf('%s %s %s', python_executable, python_script, adj_file );
+    % Call Python script
+    system_command = sprintf('%s %s %s', python_executable, python_script, adj_file);
     [status, cmdout] = system(system_command);
 
-    % Clean up the temporary adjacency matrix file
+    % Clean up
     if exist(adj_file, 'file')
         delete(adj_file);
     end    
 
-    % Check for errors
+    % Handle Python script errors
     if status ~= 0
         disp('Error running the Python script:');
         disp(cmdout);
         return;
     else
-        % Load the clustering results
         clusters = jsondecode(fileread('clusters.json'));
-    
-        delete('clusters.json')
-    
-        disp("Parsing Leiden:")
+        delete('clusters.json');
+        disp("Parsing Leiden:");
         disp(cmdout);
-    
-        % Display the clustering results
-        nclus = length( unique(clusters) );
-        fprintf('Number Leiden clusters %d \n', nclus);
+        nclus = length(unique(clusters));
+        fprintf('Number Leiden clusters: %d\n', nclus);
     end
 
     % Assign clustering results to the SCE object
     sce.c_cluster_id = clusters + 1;
 
-    % Embed cells and assign cell types
+    % Optional: Annotate cell types
     tic;
-    %sce = sce.embedcells('umap2d', true, false, 2);
-    %rng('default');
-    %sce = sce.embedcells('tsne3d', true, false, 3);
     if ~isempty(species)
-        fprintf("Annotating species %s \n\n", species)
+        fprintf("Annotating species: %s\n\n", species);
         sce = sce.assigncelltype(species, false);
     end
-
     time_assign = toc;
-    fprintf("Time for cell annotation and embedding: %f \n", time_assign);
+    fprintf("Time for cell annotation and embedding: %f\n", time_assign);
 end

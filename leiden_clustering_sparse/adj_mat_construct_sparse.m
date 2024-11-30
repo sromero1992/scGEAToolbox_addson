@@ -17,6 +17,7 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
         error('K must be a positive integer.');
     end
 
+    fprintf("Computing full adjacency matrix! \n");
     tic;
     % X in cells by genes basis and normalize/scale (cells by genes mat)
     X = sce.X; 

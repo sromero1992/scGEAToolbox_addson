@@ -21,7 +21,7 @@ function adjX = adj_mat_construct_sparse_blocked(sce, method, K, chunk_size)
         error('chunk_size must be a positive integer.');
     end
 
-    fprintf("Computing adjacency matrix! \n");
+    fprintf("Computing chunked adjacency matrix! \n");
     tic;
     % Normalize and preprocess input data (genes by cells)
     X = sce.X; 
