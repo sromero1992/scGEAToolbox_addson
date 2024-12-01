@@ -123,7 +123,11 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
         sce.s = umap_s;
         disp("Parsing umap function:")
         disp(cmdout);
-    
+        % Clean up the temporary adjacency matrix file
+        if exist(file_out, 'file')
+            delete(file_out);
+        end    
+
     end
 
 end
