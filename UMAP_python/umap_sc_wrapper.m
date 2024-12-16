@@ -11,12 +11,12 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
 
     if nargin < 2 || isempty(ndim); ndim = 2; end
     if nargin < 3 || isempty(use_hvgs); use_hvgs = false; end
-    if nargin < 4 || isempty(my_res); my_res = 1.0; end
+    if nargin < 4 || isempty(my_res); my_res = 2.0; end
 
     file_h5ad = 'sce_data.h5ad';
     file_out = 'leiden_umap.csv';
     npca = 50;
-    mt_pct = 15.0;
+    mt_pct = 20.0;
     min_genes0 = 200;
     min_cells0 = 3;
     max_counts = 1.0e7;
@@ -90,9 +90,9 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
     disp(cmdout)
 
     % Clean up the temporary adjacency matrix file
-    if exist(file_h5ad, 'file')
-        delete(file_h5ad);
-    end    
+    %if exist(file_h5ad, 'file')
+    %    delete(file_h5ad);
+    %end    
 
     % Check for errors
     if status ~= 0

@@ -21,8 +21,8 @@ function sce = leiden_annotation_sparse(sce, species, method)
     fprintf("Leiden annotation with method: %s\n", method);
 
     % Set the Python environment (Python 3.11)
-    %env_bin = 'C:\Users\ssromerogon\.conda\envs\leiden_clustering\python.exe';
-    env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
+    env_bin = 'C:\Users\ssromerogon\.conda\envs\leiden_clustering\python.exe';
+    %env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
     if ispc
         env_bin = strrep(env_bin, "\", "\\");
     end

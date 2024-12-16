@@ -6,8 +6,8 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
-                     ndim=2, use_hvg=False, my_res=1, mt_pct=5, min_genes0=500,
-                     min_cells0=15, max_counts=100000, algo_cluster="leidenalg"):
+                     ndim=2, use_hvg=False, my_res=1, mt_pct=20, min_genes0=200,
+                     min_cells0=3, max_counts=1e7, algo_cluster="leidenalg"):
     """
     Process single-cell data from a 10x HDF5 file and perform Leiden clustering with UMAP embedding.
 

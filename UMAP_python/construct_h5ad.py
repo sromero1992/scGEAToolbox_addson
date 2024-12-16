@@ -68,7 +68,8 @@ def load_csv(file_path, has_header=False):
 
 
 # Load the other data
-genes = load_csv(gene_file)        # Gene names
+#genes = load_csv(gene_file)        # Gene names
+genes = load_csv(gene_file).squeeze().astype(str)
 cell_ids = load_csv(cellid_file)      # Cell IDs
 cell_types = load_csv(celltype_file)   # Cell type annotations
 batch_ids = load_csv(batch_file)        # Batch IDs

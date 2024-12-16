@@ -312,6 +312,7 @@ function circadian_gui
         %hWaitbar = waitbar(0, 'Analyzing...');
         disp("Working on Plot Genes...")
 
+        disp(['Custom cells selected : ', cust_cells])
 
         try
             % Call the sce_circ_phase_estimation function      
