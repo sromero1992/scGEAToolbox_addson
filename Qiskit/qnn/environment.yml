@@ -20,4 +20,4 @@ dependencies:
   - torchvision 
   - torchaudio
   - pylatexenc
-  - ipywidget
+  - ipywidgets
