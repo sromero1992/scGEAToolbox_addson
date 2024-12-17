@@ -1,6 +1,6 @@
 Installation: 
 conda env create -f environment.yml
-conda activate leiden_clustering
+conda activate scanpy_env_311 
 
 
 ADD TO MATLAB PATH:  
@@ -14,21 +14,14 @@ EXAMPLE
 # conda environments:
 #
 base                     F:\Anaconda
-leiden_clustering        F:\Anaconda\envs\leiden_clustering
-scanpy_env            *  F:\Anaconda\envs\scanpy_env
+scanpy_env_311        *  F:\Anaconda\envs\leiden_clustering
+scanpy_env               F:\Anaconda\envs\scanpy_env
 
 
-PASTE in leiden_annotation_sparse.m 
-20    env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
-
-
- 
-
- 
- 
-open leiden_annotation_sparse.m in MATLAB and paste in line 29
+IMPORTANT:
+open leiden_annotation_sparse.m in MATLAB and paste in line 24
 i.e. env_bin = 'F:\Anaconda\envs\leiden_clustering\python.exe';
-(Make sure to leave '\python.exe' at the end)
+(Make sure to leave '\python.exe' at the end for windows machine)
 Save file
  
  
