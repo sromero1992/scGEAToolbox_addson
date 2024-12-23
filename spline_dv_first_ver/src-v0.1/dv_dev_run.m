@@ -31,7 +31,7 @@ X2 = X2(jrows,:);
 [X2]= sc_norm(X2,'type','libsize');
 
 % Differential variability
-[Tdv, Tig, influgenes] = sc_variability(X, X2, gl, gl, fname1, false);
+[Tdv, Tig, influgenes] = sc_splinedv(X, X2, gl, gl, fname1, false);
 
 % Differential expression
 [Tde, Tup, Tdn] = sc_deg(X, X2, gl, 1, false);
