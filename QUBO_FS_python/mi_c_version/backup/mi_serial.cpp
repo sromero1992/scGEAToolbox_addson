@@ -269,7 +269,7 @@ Eigen::SparseMatrix<double> loadMatrixMarketFile(const std::string &filename) {
     return matrix;
 }
 
-// Main function with OpenMP parallelization
+// Main function
 int main() {
     Eigen::SparseMatrix<double> sparseMatrix;
     Eigen::SparseMatrix<double> pythonMI;
@@ -293,14 +293,12 @@ int main() {
     size_t nbins = 20; // Number of bins for discretization
     Eigen::MatrixXd cppMI(sparseMatrix.rows(), sparseMatrix.rows()); // Use cols for MI matrix
 
-    // OpenMP parallelization for computing mutual information
-    #pragma omp parallel for
     for (int i = 0; i < sparseMatrix.rows(); ++i) {
-        // Convert row i of the sparse matrix to a dense vector
+        // Convert row `i` of the sparse matrix to a dense vector
         Eigen::VectorXd row_i = sparseMatrix.row(i).toDense();
 
         for (int j = i; j < sparseMatrix.rows(); ++j) {
-            // Convert row j of the sparse matrix to a dense vector
+            // Convert row `j` of the sparse matrix to a dense vector
             Eigen::VectorXd row_j = sparseMatrix.row(j).toDense();
 
             // Transform Eigen::VectorXd to std::vector<double> for the MI computation
@@ -315,7 +313,7 @@ int main() {
             cppMI(j, i) = mi_value;
 
             // Print the MI value for the pair (i, j)
-            // std::cout << "MI between row " << i << " and row " << j << " = " << mi_value << std::endl;
+            //std::cout << "MI between row " << i << " and row " << j << " = " << mi_value << std::endl;
         }
     }
 
