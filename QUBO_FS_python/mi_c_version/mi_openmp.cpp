@@ -7,6 +7,10 @@
 #include <stdexcept>
 #include <omp.h>
 #include "mmio.h"
+#include <cstdlib>
+#include <chrono>
+#include <Eigen/SparseCore> 
+
 
 // Helper function for equal-width binning
 std::vector<double> create_bin_edges(const std::vector<double>& vec, size_t nbins) {
@@ -99,6 +103,7 @@ double computeError(const Eigen::MatrixXd& cppMatrix, const Eigen::MatrixXd& pyt
 
     return std::sqrt(error / count); // RMSE
 }
+
 // Load sparse matrix from Matrix Market file
 Eigen::SparseMatrix<double> loadMatrixMarketFile(const std::string& filename) {
     Eigen::SparseMatrix<double> matrix;
@@ -122,12 +127,17 @@ Eigen::SparseMatrix<double> loadMatrixMarketFile(const std::string& filename) {
     std::vector<double> values(nonzeros);
 
     for (int i = 0; i < nonzeros; ++i) {
-        fscanf(file, "%d %d %lf\n", &row_indices[i], &col_indices[i], &values[i]);
-        row_indices[i]--;
+        // Check the return value of fscanf to ensure reading was successful
+        if (fscanf(file, "%d %d %lf\n", &row_indices[i], &col_indices[i], &values[i]) != 3) {
+            fclose(file);
+            throw std::runtime_error("Error reading matrix element " + std::to_string(i));
+        }
+
+        row_indices[i]--;  // Adjust for 0-based indexing
         col_indices[i]--;
     }
 
-    fclose(file);
+    fclose(file);  // Close the file after reading
 
     matrix.resize(rows, cols);
     for (int i = 0; i < nonzeros; ++i) {
@@ -137,10 +147,23 @@ Eigen::SparseMatrix<double> loadMatrixMarketFile(const std::string& filename) {
     return matrix;
 }
 
+
 // Main function with OpenMP parallelization
-int main() {
+int main(int argc, char* argv[]) {
     Eigen::SparseMatrix<double> sparseMatrix;
     Eigen::SparseMatrix<double> pythonMI;
+
+    int max_proc =  omp_get_num_procs();
+
+    // Check if the number of threads is provided as a command line argument
+    int num_threads = max_proc;  // Default number of threads
+    if (argc > 1) {
+        num_threads = std::atoi(argv[1]);  // Convert argument to integer
+    }
+    std::cout << "Requested procs : " << num_threads << std::endl;
+    std::cout << "Max procs available: " << max_proc << std::endl;
+
+    omp_set_num_threads(num_threads);  // Set the number of threads based on input
 
     try {
         sparseMatrix = loadMatrixMarketFile("sparse_matrix.mtx");
@@ -153,7 +176,11 @@ int main() {
     size_t nbins = 20;
     Eigen::MatrixXd cppMI(sparseMatrix.rows(), sparseMatrix.rows());
 
-    #pragma omp parallel for
+    // Start measuring time for the parallel for loop
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    // Parallelize the outer loop using OpenMP
+    #pragma omp parallel for schedule(dynamic, 10)
     for (int i = 0; i < sparseMatrix.rows(); ++i) {
         Eigen::VectorXd row_i = sparseMatrix.row(i).toDense();
 
@@ -173,6 +200,12 @@ int main() {
         }
     }
 
+    // End measuring time for the parallel for loop
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_time = end_time - start_time;
+
+    std::cout << "Time taken for the parallel for loop: " << elapsed_time.count() << " seconds" << std::endl;
+
     try {
         double error = computeError(cppMI, pythonMI);
         std::cout << "Error between C++ and Python MI matrices: " << error << std::endl;
@@ -182,3 +215,4 @@ int main() {
 
     return 0;
 }
+
