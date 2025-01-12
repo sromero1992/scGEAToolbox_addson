@@ -2,175 +2,250 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <numeric>
 #include <Eigen/Sparse>
-#include <unsupported/Eigen/SparseExtra> // For Matrix Market file support
-#include <limits>
+#include <numeric>
 #include <stdexcept>
+#include "mmio.h"
 
-// Entropy calculation
-double entropy(const std::vector<double>& prob) {
-    if (prob.empty()) {
-        std::cerr << "Error: Probability vector is empty!" << std::endl;
-        return 0.0;
-    }
 
-    std::vector<double> prob_copy = prob; // Create a copy of the vector
-    double total_prob = std::accumulate(prob_copy.begin(), prob_copy.end(), 0.0);
-    if (total_prob > 0) {
-        for (double& p : prob_copy) {
-            p /= total_prob;  // Normalize to ensure sum is 1
-        }
+// Helper function for equal-width binning
+std::vector<double> create_bin_edges(const std::vector<double>& sorted_vec, size_t nbins) {
+    std::vector<double> bin_edges;
+    double min_value = sorted_vec.front();
+    double max_value = sorted_vec.back();
+    
+    for (size_t i = 0; i <= nbins; ++i) {
+        double bin_edge = min_value + (max_value - min_value) * i / nbins;
+        bin_edges.push_back(bin_edge);
     }
-
-    double result = 0.0;
-    for (double p : prob_copy) {
-        if (p > 0) {
-            result -= p * std::log2(p);
-        }
-    }
-    return result;
+    return bin_edges;
 }
 
-// Helper function for quantile binning
-int compute_bin_index_quantile(double value, const std::vector<double>& bin_edges) {
+// Quantile-based binning (equal frequency)
+std::vector<double> create_quantile_bin_edges(const std::vector<double>& sorted_vec, size_t nbins) {
+    std::vector<double> bin_edges;
+    size_t n = sorted_vec.size();
+    
+    for (size_t i = 0; i <= nbins; ++i) {
+        size_t index = static_cast<size_t>(std::round(i * (n - 1) / static_cast<double>(nbins)));
+        bin_edges.push_back(sorted_vec[index]);
+    }
+    return bin_edges;
+}
+
+// Logarithmic binning for wide range data
+std::vector<double> create_log_bin_edges(const std::vector<double>& sorted_vec, size_t nbins) {
+    std::vector<double> bin_edges;
+    double min_value = sorted_vec.front();
+    double max_value = sorted_vec.back();
+    
+    for (size_t i = 0; i <= nbins; ++i) {
+        double log_min = std::log(min_value);
+        double log_max = std::log(max_value);
+        double bin_edge = std::exp(log_min + (log_max - log_min) * i / nbins);
+        bin_edges.push_back(bin_edge);
+    }
+    return bin_edges;
+}
+
+// Dynamic binning strategy: Here, we dynamically decide the bin edges based on the data distribution
+std::vector<double> create_dynamic_bin_edges(const std::vector<double>& sorted_vec, size_t nbins) {
+    std::vector<double> bin_edges;
+    size_t n = sorted_vec.size();
+
+    // Calculate density-based binning (using interquartile range)
+    double q1 = sorted_vec[n / 4];
+    double q3 = sorted_vec[3 * n / 4];
+    double iqr = q3 - q1; // Interquartile range (used for binning sensitivity)
+    
+    // The bins are distributed based on IQR and data spread
+    double min_value = sorted_vec.front();
+    double max_value = sorted_vec.back();
+
+    for (size_t i = 0; i <= nbins; ++i) {
+        double bin_edge = min_value + (max_value - min_value) * i / nbins;
+        if (i > 0 && bin_edge < (q1 - 1.5 * iqr)) {
+            bin_edge = (q1 - 1.5 * iqr); // Adjust for density-based bin edges
+        }
+        bin_edges.push_back(bin_edge);
+    }
+    return bin_edges;
+}
+
+// Compute the bin index for a given value
+int compute_bin_index(double value, const std::vector<double>& bin_edges) {
+    if (value < bin_edges.front()) {
+        return -1;
+    }
+    if (value >= bin_edges.back()) {
+        return bin_edges.size() - 2;
+    }
     for (size_t i = 0; i < bin_edges.size() - 1; ++i) {
         if (value >= bin_edges[i] && value < bin_edges[i + 1]) {
-            return static_cast<int>(i); // Cast to int for return type
+            return static_cast<int>(i);
         }
     }
-    // Ensure values equal to the last edge are assigned to the last bin
-    if (value == bin_edges.back()) {
-        return static_cast<int>(bin_edges.size() - 2); // Last valid bin index
-    }
-    return static_cast<int>(bin_edges.size() - 1); // Return the last bin (in case of float precision issues)
+    return -1;
 }
 
-double compute_pairwise_mi(const Eigen::SparseMatrix<double>& sparse_matrix, int i, int j, size_t nbins) {
-    std::cout << "Computing pairwise MI for indices i = " << i << " and j = " << j << std::endl;
-
-    // Convert sparse matrix row i and j to full vectors (including zeros)
-    Eigen::VectorXd values_i(sparse_matrix.cols());
-    Eigen::VectorXd values_j(sparse_matrix.cols());
-
-    values_i.setZero();  // Initialize the vectors with zeroes
-    values_j.setZero();
-
-    bool has_nonzero_i = false, has_nonzero_j = false;
-
-    // Populate the vectors with non-zero values from sparse matrix
-    for (int k = 0; k < sparse_matrix.outerSize(); ++k) {
-        for (Eigen::SparseMatrix<double>::InnerIterator it(sparse_matrix, k); it; ++it) {
-            if (it.row() == i) {
-                values_i[it.col()] = it.value();  // Store non-zero value in dense vector
-                has_nonzero_i = true;
-            }
-            if (it.row() == j) {
-                values_j[it.col()] = it.value();  // Store non-zero value in dense vector
-                has_nonzero_j = true;
-            }
-        }
+// Compute mutual information between two vectors
+double compute_pairwise_mi(const std::vector<double>& vec1, const std::vector<double>& vec2, size_t nbins) {
+    if (vec1.empty() || vec2.empty() || nbins == 0) {
+        throw std::invalid_argument("Input vectors must not be empty, and nbins must be greater than 0.");
+    }
+    if (vec1.size() != vec2.size()) {
+        throw std::invalid_argument("Input vectors must have the same size.");
     }
 
-    // Print the values for debugging
-    std::cout << "Values for i (" << i << "): ";
-    for (int idx = 0; idx < values_i.size(); ++idx) {
-        std::cout << values_i[idx] << " ";
-    }
-    std::cout << std::endl;
+    std::vector<double> sorted_vec1 = vec1, sorted_vec2 = vec2;
+    std::sort(sorted_vec1.begin(), sorted_vec1.end());
+    std::sort(sorted_vec2.begin(), sorted_vec2.end());
 
-    std::cout << "Values for j (" << j << "): ";
-    for (int idx = 0; idx < values_j.size(); ++idx) {
-        std::cout << values_j[idx] << " ";
-    }
-    std::cout << std::endl;
+    // Create bin edges based on the dynamic binning strategy
+    std::vector<double> bin_edges1 = create_dynamic_bin_edges(sorted_vec1, nbins);
+    std::vector<double> bin_edges2 = create_dynamic_bin_edges(sorted_vec2, nbins);
 
-    // Optionally, check if any values were populated
-    if (!has_nonzero_i) {
-        std::cout << "No non-zero values found for row " << i << std::endl;
-    }
-    if (!has_nonzero_j) {
-        std::cout << "No non-zero values found for row " << j << std::endl;
-    }
-
-    // If either row i or row j is full of zeros, skip MI computation for this pair
-    if (!has_nonzero_i && !has_nonzero_j) {
-        std::cout << "The vectors are zero, returning MI = 0 for i = " << i << " and j = " << j << std::endl;
-        return 0.0;
-    }
-
-    // Create quantile bin edges for i and j
-    std::vector<double> bin_edges_i(nbins + 1), bin_edges_j(nbins + 1);
-
-    // Sort the values and compute bin edges based on sorted data
-    std::vector<double> sorted_i(values_i.data(), values_i.data() + values_i.size());
-    std::vector<double> sorted_j(values_j.data(), values_j.data());
-    std::sort(sorted_i.begin(), sorted_i.end());
-    std::sort(sorted_j.begin(), sorted_j.end());
-
-    // Compute the bin edges based on quantiles
-    for (size_t k = 0; k <= nbins; ++k) {
-        bin_edges_i[k] = sorted_i[static_cast<size_t>(k * sorted_i.size() / nbins)];
-        bin_edges_j[k] = sorted_j[static_cast<size_t>(k * sorted_j.size() / nbins)];
-    }
-    std::cout << "Quantile bin edges for i and j computed." << std::endl;
-
-    // Create a 2D histogram (joint probability distribution)
+    // Create joint histogram
     std::vector<std::vector<int>> joint_counts(nbins, std::vector<int>(nbins, 0));
 
-    std::cout << "Starting joint histogram computation." << std::endl;
+    for (size_t idx = 0; idx < vec1.size(); ++idx) {
+        int bin1 = compute_bin_index(vec1[idx], bin_edges1);
+        int bin2 = compute_bin_index(vec2[idx], bin_edges2);
 
-    // Compute the joint histogram
-    for (int k = 0; k < sparse_matrix.outerSize(); ++k) {
-        for (Eigen::SparseMatrix<double>::InnerIterator it(sparse_matrix, k); it; ++it) {
-            if (it.row() == i || it.row() == j) {
-                int bin_i = compute_bin_index_quantile(it.value(), bin_edges_i);
-                int bin_j = compute_bin_index_quantile(it.value(), bin_edges_j);
-                joint_counts[bin_i][bin_j]++;
-            }
+        if (bin1 >= 0 && bin1 < nbins && bin2 >= 0 && bin2 < nbins) {
+            joint_counts[bin1][bin2]++;
         }
     }
 
-    std::cout << "Joint histogram computation completed." << std::endl;
+    // Calculate total count directly
+    int total_count = std::accumulate(joint_counts.begin(), joint_counts.end(), 0,
+        [](int sum, const std::vector<int>& row) {
+            return sum + std::accumulate(row.begin(), row.end(), 0);
+        });
 
-    // Now calculate the mutual information from the joint histogram
-    double result = 0.0;
-    int total_count = 0;
-    for (size_t bin_i = 0; bin_i < nbins; ++bin_i) {
-        for (size_t bin_j = 0; bin_j < nbins; ++bin_j) {
-            total_count += joint_counts[bin_i][bin_j];
+    // Normalize joint probabilities
+    std::vector<std::vector<double>> joint_prob(nbins, std::vector<double>(nbins, 0.0));
+    for (size_t i = 0; i < nbins; ++i) {
+        for (size_t j = 0; j < nbins; ++j) {
+            joint_prob[i][j] = static_cast<double>(joint_counts[i][j]) / total_count;
         }
     }
 
-    std::cout << "Total count in joint histogram: " << total_count << std::endl;
-
-    // Calculate the mutual information
-    for (size_t bin_i = 0; bin_i < nbins; ++bin_i) {
-        for (size_t bin_j = 0; bin_j < nbins; ++bin_j) {
-            double p_ij = static_cast<double>(joint_counts[bin_i][bin_j]) / total_count;
-            double p_i = static_cast<double>(std::accumulate(joint_counts[bin_i].begin(), joint_counts[bin_i].end(), 0)) / total_count;
-            double p_j = static_cast<double>(std::accumulate(joint_counts.begin(), joint_counts.end(), 0, 
-                        [bin_j](int acc, const std::vector<int>& row) { return acc + row[bin_j]; })) / total_count;
-
-            if (p_ij > 0) {
-                result += p_ij * log(p_ij / (p_i * p_j));
-            }
+    // Compute marginal probabilities
+    std::vector<double> marginal1(nbins, 0.0), marginal2(nbins, 0.0);
+    for (size_t i = 0; i < nbins; ++i) {
+        for (size_t j = 0; j < nbins; ++j) {
+            marginal1[i] += joint_prob[i][j];
+            marginal2[j] += joint_prob[i][j];
         }
     }
 
-    return result;  // Return the calculated MI
+    // Define epsilon for numerical stability
+    const double eps0 = 1e-10;
+
+    // Compute the joint entropy H(X, Y)
+    double joint_entropy = 0.0;
+    for (size_t i = 0; i < nbins; ++i) {
+        for (size_t j = 0; j < nbins; ++j) {
+            double joint_val = joint_prob[i][j] + eps0;
+            joint_entropy -= joint_val * std::log2(joint_val);
+        }
+    }
+
+    // Compute the entropy H(X)
+    double entropy_x = 0.0;
+    for (size_t i = 0; i < nbins; ++i) {
+        double marginal_val_x = marginal1[i] + eps0;
+        entropy_x -= marginal_val_x * std::log2(marginal_val_x);
+    }
+
+    // Compute the entropy H(Y)
+    double entropy_y = 0.0;
+    for (size_t j = 0; j < nbins; ++j) {
+        double marginal_val_y = marginal2[j] + eps0;
+        entropy_y -= marginal_val_y * std::log2(marginal_val_y);
+    }
+
+    // Compute the mutual information MI
+    double mi = entropy_x + entropy_y - joint_entropy;
+
+    return mi;
 }
 
+// Compute error between two matrices (lower triangle only)
+double computeError(const Eigen::MatrixXd& matrix1, const Eigen::MatrixXd& matrix2) {
+    if (matrix1.rows() != matrix2.rows() || matrix1.cols() != matrix2.cols()) {
+        throw std::invalid_argument("Matrix dimensions must match for error computation.");
+    }
 
+    double error = 0.0;
+    int count = 0;  // Keep track of the number of comparisons
+
+    // Loop over the lower triangle part (excluding diagonal) of the matrix
+    for (int i = 1; i < matrix1.rows(); ++i) {  // Start from row 1 to skip the diagonal
+        for (int j = 0; j < i; ++j) {  // Loop over columns to the left of the diagonal
+            // Compute squared error between the values of the lower triangle
+            error += std::pow(matrix1(i, j) - matrix2(i, j), 2);
+            count++;
+        }
+    }
+
+    // Calculate the root mean squared error (RMSE)
+    return std::sqrt(error / count); // RMSE
+}
 
 
 // Load sparse matrix from Matrix Market file
-Eigen::SparseMatrix<double> loadMatrixMarketFile(const std::string& filename) {
+Eigen::SparseMatrix<double> loadMatrixMarketFile(const std::string &filename) {
+    Eigen::SparseMatrix<double> matrix;
     std::cout << "Loading matrix from file: " << filename << std::endl;
 
-    Eigen::SparseMatrix<double> matrix;
-    if (!Eigen::loadMarket(matrix, filename)) {
-        throw std::runtime_error("Failed to load the Matrix Market file: " + filename);
+    // Open the file
+    FILE* file = fopen(filename.c_str(), "r");
+    if (!file) {
+        throw std::runtime_error("Failed to open Matrix Market file: " + filename);
+    }
+
+    // Read matrix market header
+    MM_typecode matcode;
+    if (mm_read_banner(file, &matcode) != 0) {
+        throw std::runtime_error("Could not read Matrix Market banner.");
+    }
+
+    // Check if the file contains a sparse matrix
+    if (!mm_is_sparse(matcode)) {
+        fclose(file);
+        throw std::runtime_error("Matrix Market file is not sparse.");
+    }
+
+    int rows, cols, nonzeros;
+    if (mm_read_mtx_crd_size(file, &rows, &cols, &nonzeros) != 0) {
+        fclose(file);
+        throw std::runtime_error("Could not read matrix dimensions from Matrix Market file.");
+    }
+
+    // Allocate space for matrix data (non-zero entries)
+    std::vector<int> row_indices(nonzeros);
+    std::vector<int> col_indices(nonzeros);
+    std::vector<double> values(nonzeros);
+
+    // Read matrix entries
+    for (int i = 0; i < nonzeros; ++i) {
+        if (fscanf(file, "%d %d %lf\n", &row_indices[i], &col_indices[i], &values[i]) != 3) {
+            fclose(file);
+            throw std::runtime_error("Error reading matrix entries from Matrix Market file.");
+        }
+        // Convert to 0-based indexing
+        row_indices[i]--;
+        col_indices[i]--;
+    }
+
+    fclose(file);
+
+    // Create the Eigen SparseMatrix from the read values
+    matrix.resize(rows, cols);
+    for (int i = 0; i < nonzeros; ++i) {
+        matrix.insert(row_indices[i], col_indices[i]) = values[i];
     }
 
     std::cout << "Matrix loaded with size: " << matrix.rows() << "x" << matrix.cols() << std::endl;
@@ -178,13 +253,12 @@ Eigen::SparseMatrix<double> loadMatrixMarketFile(const std::string& filename) {
     // Debugging: Print a few matrix entries
     int max_entries_to_print = 10; // Limit the number of entries printed
     int count = 0;
-
     for (int k = 0; k < matrix.outerSize(); ++k) {
         for (Eigen::SparseMatrix<double>::InnerIterator it(matrix, k); it; ++it) {
             if (count >= max_entries_to_print) {
                 break; // Stop printing after max_entries_to_print
             }
-            std::cout << "Matrix entry: (" << it.row() << ", " << it.col() << ") = " << it.value() << std::endl;
+            //std::cout << "Matrix entry: (" << it.row() << ", " << it.col() << ") = " << it.value() << std::endl;
             count++;
         }
         if (count >= max_entries_to_print) {
@@ -193,21 +267,6 @@ Eigen::SparseMatrix<double> loadMatrixMarketFile(const std::string& filename) {
     }
 
     return matrix;
-}
-
-// Compute error between two matrices
-double computeError(const Eigen::MatrixXd& matrix1, const Eigen::MatrixXd& matrix2) {
-    if (matrix1.rows() != matrix2.rows() || matrix1.cols() != matrix2.cols()) {
-        throw std::invalid_argument("Matrix dimensions must match for error computation.");
-    }
-
-    double error = 0.0;
-    for (int i = 0; i < matrix1.rows(); ++i) {
-        for (int j = 0; j < matrix1.cols(); ++j) {
-            error += std::pow(matrix1(i, j) - matrix2(i, j), 2); // Mean Squared Error
-        }
-    }
-    return std::sqrt(error / (matrix1.rows() * matrix1.cols())); // Root Mean Squared Error
 }
 
 // Main function
@@ -220,7 +279,7 @@ int main() {
         sparseMatrix = loadMatrixMarketFile("sparse_matrix.mtx");
 
         // Load Python-computed MI matrix
-        pythonMI = loadMatrixMarketFile("mi_matrix.mtx");
+        pythonMI = loadMatrixMarketFile("sparse_matrix_mi.mtx");
 
         std::cout << "Sparse Matrix size: " << sparseMatrix.rows() << "x" << sparseMatrix.cols() << std::endl;
         std::cout << "Python MI Matrix size: " << pythonMI.rows() << "x" << pythonMI.cols() << std::endl;
@@ -230,15 +289,31 @@ int main() {
         return 1;
     }
 
-    // Compute MI matrix in C++ using sparse matrix directly
+    // Compute MI matrix in C++ using full vectors from sparse matrix
     size_t nbins = 20; // Number of bins for discretization
     Eigen::MatrixXd cppMI(sparseMatrix.rows(), sparseMatrix.rows()); // Use cols for MI matrix
 
-    for (int i = 0; i < sparseMatrix.rows(); ++i) {  // Iterate over columns
-        for (int j = i; j < sparseMatrix.rows(); ++j) {  // Iterate over columns
-            double mi_value = compute_pairwise_mi(sparseMatrix, i, j, nbins);
+    for (int i = 0; i < sparseMatrix.rows(); ++i) {
+        // Convert row `i` of the sparse matrix to a dense vector
+        Eigen::VectorXd row_i = sparseMatrix.row(i).toDense();
+
+        for (int j = i; j < sparseMatrix.rows(); ++j) {
+            // Convert row `j` of the sparse matrix to a dense vector
+            Eigen::VectorXd row_j = sparseMatrix.row(j).toDense();
+
+            // Transform Eigen::VectorXd to std::vector<double> for the MI computation
+            std::vector<double> vec1(row_i.data(), row_i.data() + row_i.size());
+            std::vector<double> vec2(row_j.data(), row_j.data() + row_j.size());
+
+            // Compute the mutual information
+            double mi_value = compute_pairwise_mi(vec1, vec2, nbins);
+
+            // Store the MI value (symmetrical matrix)
             cppMI(i, j) = mi_value;
-            cppMI(j, i) = mi_value; // Since MI is symmetric
+            cppMI(j, i) = mi_value;
+
+            // Print the MI value for the pair (i, j)
+            //std::cout << "MI between row " << i << " and row " << j << " = " << mi_value << std::endl;
         }
     }
 
