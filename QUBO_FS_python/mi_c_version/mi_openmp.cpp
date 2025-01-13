@@ -2,13 +2,13 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <Eigen/Sparse>
 #include <numeric>
 #include <stdexcept>
 #include <omp.h>
 #include "mmio.h"
 #include <cstdlib>
 #include <chrono>
+#include <Eigen/Sparse>
 #include <Eigen/SparseCore> 
 
 

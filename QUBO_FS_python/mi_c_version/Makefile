@@ -2,9 +2,13 @@
 CXX = g++
 MPICXX = mpic++
 
-# Flags
-CXXFLAGS_RELEASE = -O2 -Wall -I/usr/include/eigen3 -lm
-CXXFLAGS_DEBUG = -g -O0 -DDEBUG -Wall -Wextra -pedantic -fsanitize=address -fno-omit-frame-pointer -I/usr/include/eigen3 -lm
+# Flags Windows
+CXXFLAGS_RELEASE = -O2 -Wall -I /c/Users/ssromerogon/eigen-3.4.0 -lm
+CXXFLAGS_DEBUG = -g -O0 -DDEBUG -Wall -Wextra -pedantic -fsanitize=address -fno-omit-frame-pointer -I /c/Users/ssromerogon/eigen-3.4.0/Eigen -lm
+
+# Flags Linux (commented out since this is Windows)
+#CXXFLAGS_RELEASE = -O2 -Wall -I/usr/include/eigen3 -lm
+#CXXFLAGS_DEBUG = -g -O0 -DDEBUG -Wall -Wextra -pedantic -fsanitize=address -fno-omit-frame-pointer -I/usr/include/eigen3 -lm
 
 OPENMPFLAGS = -fopenmp
 MPIFLAGS =
