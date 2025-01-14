@@ -1,27 +1,42 @@
 # Compiler
 CXX = g++
-MPICXX = mpic++
 
-# Flags Windows
-CXXFLAGS_RELEASE = -O2 -Wall -I /c/Users/ssromerogon/eigen-3.4.0 -lm
-CXXFLAGS_DEBUG = -g -O0 -DDEBUG -Wall -Wextra -pedantic -fsanitize=address -fno-omit-frame-pointer -I /c/Users/ssromerogon/eigen-3.4.0/Eigen -lm
+# Default SYS
+SYS ?= linux
+LOCAL_EIGEN_WIN = C:/Users/ssromerogon/Documents/vscode_working_dir/eigen # Pulled repo
+#LOCAL_EIGEN_WIN = C:/Users/ssromerogon/Documents/vscode_working_dir/scGEAToolbox_addson/QUBO_FS_python/mi_c_version/eigen3/include/eigen3 # Local installation
+LOCAL_EIGEN_LIN = /usr/local/include/eigen3
 
-# Flags Linux (commented out since this is Windows)
-#CXXFLAGS_RELEASE = -O2 -Wall -I/usr/include/eigen3 -lm
-#CXXFLAGS_DEBUG = -g -O0 -DDEBUG -Wall -Wextra -pedantic -fsanitize=address -fno-omit-frame-pointer -I/usr/include/eigen3 -lm
+# Flags for Windows
+CXXFLAGS_WINDOWS_RELEASE = -O2 -Wall -I $(LOCAL_EIGEN_WIN) -lm
+CXXFLAGS_WINDOWS_DEBUG = -g -O0 -DDEBUG -Wall -Wextra -pedantic -fsanitize=address -fno-omit-frame-pointer -I $(LOCAL_EIGEN_WIN) -lm
 
+# Flags for Linux
+CXXFLAGS_LINUX_RELEASE = -O2 -Wall -I $(LOCAL_EIGEN_LIN) -lm
+CXXFLAGS_LINUX_DEBUG = -g -O0 -DDEBUG -Wall -Wextra -pedantic -fsanitize=address -fno-omit-frame-pointer -I $(LOCAL_EIGEN_LIN) -lm
+
+# OpenMP flags
 OPENMPFLAGS = -fopenmp
-MPIFLAGS =
 
-# Build type (default is Release)
-ifeq ($(DEBUG),yes)
-    CXXFLAGS = $(CXXFLAGS_DEBUG)
+# Select SYS-specific flags
+ifeq ($(SYS),windows)
+    ifeq ($(DEBUG),yes)
+        CXXFLAGS = $(CXXFLAGS_WINDOWS_DEBUG)
+    else
+        CXXFLAGS = $(CXXFLAGS_WINDOWS_RELEASE)
+    endif
+else ifeq ($(SYS),linux)
+    ifeq ($(DEBUG),yes)
+        CXXFLAGS = $(CXXFLAGS_LINUX_DEBUG)
+    else
+        CXXFLAGS = $(CXXFLAGS_LINUX_RELEASE)
+    endif
 else
-    CXXFLAGS = $(CXXFLAGS_RELEASE)
+    $(error Unsupported platform: $(SYS))
 endif
 
 # Targets
-TARGETS = mi_serial mi_openmp mi_mpi
+TARGETS = mi_serial mi_openmp
 
 # Rules
 all: $(TARGETS)
@@ -32,9 +47,5 @@ mi_serial: mi_serial.cpp mmio.c mmio.h
 mi_openmp: mi_openmp.cpp mmio.c mmio.h
 	$(CXX) $(CXXFLAGS) $(OPENMPFLAGS) -o $@ mi_openmp.cpp mmio.c
 
-mi_mpi: mi_mpi.cpp mmio.c mmio.h
-	$(MPICXX) $(CXXFLAGS) $(MPIFLAGS) -o $@ mi_mpi.cpp mmio.c
-
 clean:
 	rm -f $(TARGETS)
-
