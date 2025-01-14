@@ -293,9 +293,11 @@ int main() {
         return 1;
     }
 
-    // Compute MI matrix in C++ using full vectors from sparse matrix
-    size_t nbins = 20; // Number of bins for discretization
-    Eigen::MatrixXd cppMI(sparseMatrix.rows(), sparseMatrix.rows()); // Use cols for MI matrix
+    size_t nbins = 20;
+    Eigen::MatrixXd cppMI(sparseMatrix.rows(), sparseMatrix.rows());
+
+    // Start measuring time for the parallel for loop
+    auto start_time = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < sparseMatrix.rows(); ++i) {
         // Convert row `i` of the sparse matrix to a dense vector
@@ -321,7 +323,12 @@ int main() {
         }
     }
 
-    // Calculate error between C++ and Python MI matrices
+    // End measuring time for the parallel for loop
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_time = end_time - start_time;
+
+    std::cout << "Time taken for the parallel for loop: " << elapsed_time.count() << " seconds" << std::endl;
+
     try {
         double error = computeError(cppMI, pythonMI);
         std::cout << "Error between C++ and Python MI matrices: " << error << std::endl;
