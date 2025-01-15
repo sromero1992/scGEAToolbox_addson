@@ -5,7 +5,7 @@ CXX = g++
 SYS ?= linux
 LOCAL_EIGEN_WIN = C:/Users/ssromerogon/Documents/vscode_working_dir/eigen # Pulled repo
 #LOCAL_EIGEN_WIN = C:/Users/ssromerogon/Documents/vscode_working_dir/scGEAToolbox_addson/QUBO_FS_python/mi_c_version/eigen3/include/eigen3 # Local installation
-LOCAL_EIGEN_LIN = /usr/local/include/eigen3
+LOCAL_EIGEN_LIN = /usr/include/eigen3
 
 # Flags for Windows
 CXXFLAGS_WINDOWS_RELEASE = -O2 -Wall -I $(LOCAL_EIGEN_WIN) -lm
