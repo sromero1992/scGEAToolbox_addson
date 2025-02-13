@@ -1,5 +1,5 @@
-function sce = leiden_annotation_sparse(sce, species, method)
-    % leiden_annotation_sparse: Computes Leiden clustering interfaced from Python
+function sce = leiden_clustering_ann(sce, res, species, method)
+    % leiden_clustering: Computes Leiden clustering interfaced from Python and annotates if desired
     % with Mutual Nearest Neighbors (MNN) or K-Nearest Neighbors (KNN).
     % INPUT:
     % sce -------> SCE object
@@ -11,8 +11,9 @@ function sce = leiden_annotation_sparse(sce, species, method)
     % 
     % If no annotation is wanted, use
     % sce = leiden_annotation_sparse(sce, 'knn', [])
-    if nargin < 2; species = []; end
-    if nargin < 3; method = 'knn'; end
+    if nargin < 2; res = 2.0; end
+    if nargin < 3; species = []; end
+    if nargin < 4; method = 'knn'; end
 
     species = lower(species);
     method = lower(method);
@@ -21,7 +22,7 @@ function sce = leiden_annotation_sparse(sce, species, method)
     fprintf("Leiden annotation with method: %s\n", method);
 
     % Set the Python environment (Python 3.11)
-    env_bin = 'C:\Users\ssromerogon\.conda\envs\scanpy_env_311\python.exe';
+    env_bin = 'C:\Local_install\miniconda3\envs\scanpy_env_311\python.exe';
     %env_bin = 'F:\Anaconda\envs\scanpy_env_311\python.exe';
     if ispc
         env_bin = strrep(env_bin, "\", "\\");
@@ -84,15 +85,17 @@ function sce = leiden_annotation_sparse(sce, species, method)
 
     % Path to Python script
     python_executable = env_bin;
-    leiden_wd = which('leiden_annotation_sparse');
-    leiden_wd = erase(leiden_wd, 'leiden_annotation_sparse.m');
+    leiden_wd = which('leiden_clustering_ann');
+    leiden_wd = erase(leiden_wd, 'leiden_clustering_ann.m');
     if ispc
         leiden_wd = strrep(leiden_wd, "\", "\\");
     end
     python_script = strcat(leiden_wd, 'run_leiden_sparse.py');
 
     % Call Python script
-    system_command = sprintf('%s %s %s', python_executable, python_script, adj_file);
+    res_str = num2str(res);
+    system_command = sprintf('%s %s %s %s', python_executable, python_script, adj_file, res_str);
+
     [status, cmdout] = system(system_command);
 
     % Clean up

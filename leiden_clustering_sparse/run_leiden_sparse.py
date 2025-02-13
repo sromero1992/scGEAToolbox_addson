@@ -1,3 +1,7 @@
+# Define resolution parameter
+# Low resolution 0.1 to 1.0
+# Moderate resolution from 1.0 to 2.0
+# High resolution 2.0 to 4.0+
 import numpy as np
 import leidenalg
 import igraph as ig
@@ -16,13 +20,25 @@ def load_sparse_matrix(file_path):
     adjX = scipy.sparse.coo_matrix((values, (rows, cols)), shape=(n, n))
     return adjX
 
-input_file = 'adjX.txt'
-print("Input file: " + input_file)
+# Get input file and resolution from command-line arguments
+if len(sys.argv) != 3:
+    print("Usage: python run_leiden_sparse.py <input_file> <resolution>")
+    sys.exit(1)
 
-# Check if input file exists
+input_file = sys.argv[1]  # Correct: Gets input file from command line
+try:
+    resolution = float(sys.argv[2]) # Correct: Gets resolution from command line
+except ValueError:
+    print("Error: Resolution must be a number.")
+    sys.exit(1)
+
+# Check if input file exists (using the input_file from the command line)
 if not os.path.exists(input_file):
     print(f"Error: Input file {input_file} does not exist.")
     sys.exit(1)
+
+print("Input file: " + input_file) # Now prints the filename from the command line
+print(f"Resolution parameter: {resolution}")
 
 # Load adjacency matrix
 try:
@@ -47,13 +63,6 @@ try:
 except Exception as e:
     print(f"Error creating graph: {e}")
     sys.exit(1)
-
-# Define resolution parameter
-# Low resolution 0.1 to 1.0
-# Moderate resolution from 1.0 to 2.0
-# High resolution 2.0 to 4.0+
-resolution = 2.0 # Adjust this value as needed
-print(f"Resolution parameter: {resolution}")
 
 # Perform Leiden clustering with the resolution parameter
 try:
