@@ -51,8 +51,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
 
     % Initialize parallel pool if not already running
     if isempty(gcp('nocreate'))
-        numCores = ceil(feature('numcores')/4);
-        numCores = max(2,numCores);
+        numCores = ceil(feature('numcores')/2)-2;
         parpool(numCores);
         disp(['Parallel pool initialized with ', num2str(numCores), ' cores.']);
 
@@ -133,10 +132,10 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         end
    
         % Gene blocking parameters
-        if sce.NumCells > 15000
-            block_size = 50; % Adjust block size as needed
-        else
+        if sce.NumCells > 10000
             block_size = 500; % Adjust block size as needed
+        else
+
         end
         num_genes = length(gene_list);
         num_blocks = ceil(num_genes / block_size);

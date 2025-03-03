@@ -49,24 +49,6 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     disp("New batches")
     disp(batches')
 
-    % Initialize parallel pool if not already running
-    if isempty(gcp('nocreate'))
-        numCores = ceil(feature('numcores')/4);
-        numCores = max(2,numCores);
-        parpool(numCores);
-        disp(['Parallel pool initialized with ', num2str(numCores), ' cores.']);
-
-        % Warm up the parallel pool (optional but recommended)
-        disp('Warming up parallel pool...');
-        tic; % Start timer for warm-up
-        parfor i = 1:numCores
-            pause(0.01); % Small task to initialize workers
-        end
-        warmUpTime = toc; % Stop timer and get elapsed time
-        disp(['Parallel pool warmed up in ', num2str(warmUpTime), ' seconds.']);
-    end
-
-
     % All cell types available
     cell_type_list = unique(sce.c_cell_type_tx);
     ncell_types = length(cell_type_list);
@@ -132,79 +114,45 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
             continue; 
         end
    
-        % Gene blocking parameters
-        if sce.NumCells > 15000
-            block_size = 50; % Adjust block size as needed
-        else
-            block_size = 500; % Adjust block size as needed
-        end
-        num_genes = length(gene_list);
-        num_blocks = ceil(num_genes / block_size);
-    
-        progressbar('Starting circadian analysis...'); % Initialize progress bar
-        
-        %Initialize final arrays.
-        acro = zeros(num_genes,1);
-        amp = zeros(num_genes,1);
-        T = zeros(num_genes,1);
-        mesor = zeros(num_genes,1);
-        R0 = zeros(num_genes,nzts);
-        p_value = zeros(num_genes,1);
+        % Initialize temporary arrays to store intermediate results
+        tmp_acro = zeros(ngene, 1);
+        tmp_amp = zeros(ngene, 1);
+        tmp_T = zeros(ngene, 1);
+        tmp_p_value = zeros(ngene, 1);
+        tmp_R0 = zeros(ngene, nzts);
 
-        for block_idx = 1:num_blocks
-            start_idx = (block_idx - 1) * block_size + 1;
-            end_idx = min(block_idx * block_size, num_genes);
-            current_gene_block = gene_list(start_idx:end_idx);
-            num_genes_in_block = length(current_gene_block);
-    
-            % Initialize temporary arrays for the current block
-            tmp_acro = zeros(num_genes_in_block, 1);
-            tmp_amp = zeros(num_genes_in_block, 1);
-            tmp_T = zeros(num_genes_in_block, 1);
-            tmp_p_value = zeros(num_genes_in_block, 1);
-            tmp_R0 = zeros(num_genes_in_block, nzts);
-            tmp_mesor = zeros(num_genes_in_block, 1);
-    
-            % Create gene index lookup table for current block
-            gene_indices = zeros(num_genes_in_block,1);
-            for gene_index_block = 1:num_genes_in_block
-                gene_indices(gene_index_block) = find(sce_sub.g == string(current_gene_block{gene_index_block}));
-            end
-    
-            parfor igene_block = 1:num_genes_in_block
-                ig = gene_indices(igene_block);
-                Xg_zts = {};
-                for it = 1:nzts
-                    ics = find(sce_sub.c_batch_id == batch_time(it));
-                    if ~isempty(ig)
-                        Xg_zts{it} = full(sce_sub.X(ig, ics));
-                        tmp_R0(igene_block, it) = mean(Xg_zts{it});
-                    else
-                        Xg_zts{it} = zeros(size(ics));
-                        tmp_R0(igene_block, it) = NaN;
-                    end
+        tmp_mesor = zeros(ngene, 1);
+        parfor igene = 1:ngene
+            % Gene index to work on from list
+            %ig = find(sce_sub.g == gene_list(igene));
+            ig = find(sce_sub.g == string(gene_list{igene}));
+
+            Xg_zts = {};
+            % Prepare gene expression per time point
+            for it = 1:nzts
+                ics = find(sce_sub.c_batch_id == batch_time(it));
+                % Gene expression for a time point
+                if ~isempty(ig)
+                    Xg_zts{it} = full(sce_sub.X(ig, ics));
+                    tmp_R0(igene, it) = mean(Xg_zts{it});
+                else
+                    Xg_zts{it} = zeros(size(ics));
+                    tmp_R0(igene, it) = NaN;
                 end
-                [tmp_acro(igene_block), tmp_amp(igene_block), tmp_T(igene_block), tmp_mesor(igene_block), tmp_p_value(igene_block)] = ...
-                           estimate_phaseR(Xg_zts, time_step, period12, 'Ftest');
-            end
-    
-            % Aggregate results for the current block
-            acro(start_idx:end_idx) = tmp_acro;
-            amp(start_idx:end_idx) = tmp_amp;
-            T(start_idx:end_idx) = tmp_T;
-            mesor(start_idx:end_idx) = tmp_mesor;
-            R0(start_idx:end_idx, :) = tmp_R0;
-            p_value(start_idx:end_idx) = tmp_p_value;
-    
-            % Clear temporary variables to free memory
-            clear tmp_acro tmp_amp tmp_T tmp_mesor tmp_R0 tmp_p_value current_gene_block gene_indices;
-    
-            % Update progress bar
-            progress = (block_idx / num_blocks) * 100;
-            progressbar(progress);
+            end 
+            
+            [tmp_acro(igene), tmp_amp(igene), tmp_T(igene), tmp_mesor(igene), tmp_p_value(igene)] = ...
+                       estimate_phaseR(Xg_zts, time_step, period12, 'Ftest');       
         end
         
-
+        % Aggregate results from temporary arrays to the main arrays
+        acro = tmp_acro;
+        amp = tmp_amp;
+        T = tmp_T;
+        mesor = tmp_mesor;
+        R0 = tmp_R0;
+        p_value = tmp_p_value;
+        
         clear tmp_mesor tmp_T tmp_amp tmp_acro;
 
         acro_formatted = acro;

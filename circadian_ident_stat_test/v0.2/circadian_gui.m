@@ -42,7 +42,7 @@ function circadian_gui
 
     % Create button for Plot All
     uicontrol('Style', 'pushbutton', 'Position', [50, 250, 150, 30], ...
-              'String', 'Plot Genes & Analyze', 'Callback', @plotAllCallback);
+              'String', 'Plot Genes & Analyze', 'Callback', @plotAllGenesCallback);
 
     
     % Create text box for gene input 
@@ -255,7 +255,7 @@ function circadian_gui
     end
 
     % Callback function for Plot All button
-    function plotAllCallback(~, ~)
+    function plotAllGenesCallback(~, ~)
         % Retrieve parameters
         cust_cells = hCells.String{hCells.Value};
         %if contains(cust_cells,"None"); cust_cells = []; end

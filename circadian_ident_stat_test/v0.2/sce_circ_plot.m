@@ -26,7 +26,9 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12)
     % Define time variables
     tmeta.times = sortrows(tmeta.times);
     t0 = tmeta.times(1);
+    % This should be improved for may times...
     tint = mean(diff(tmeta.times));
+    
     disp("Time steps are : " + tint);
     tf = tmeta.times(end);
     t = t0 : tint : tf;

@@ -28,8 +28,10 @@ function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, axHandl
     % Subset and normalize cells
     ic0 = find(sce.c_cell_type_tx == cust_cells);
     sce_sub = sce.selectcells(ic0);
-    sce_sub = sce_sub.qcfilter;
-    sce_sub.X = sc_norm( full(sce_sub.X) );
+    %sce_sub = sce_sub.qcfilter;
+    sce_sub.X =sc_norm( full(sce_sub.X) );
+    sce_sub.X = log1p( sce_sub.X );
+
     ig = find(sce_sub.g == cust_gene);
 
     clear ic0;
