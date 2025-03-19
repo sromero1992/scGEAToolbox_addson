@@ -35,29 +35,33 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     fprintf("Settings: type_marker %s , organism %s , tissue_type %s \n",...
               type_marker, organism, tissue_type);
 
-    % Standarize cluster matrix to score cells?
-    std_bool = true;
     % Marker database file
-    markers = "C:\Users\ssromerogon\Documents\vscode_working_dir\new_cell_db\super_markers.txt";
+    dbs_wd = which('annotation_function');
+    dbs_wd = erase(dbs_wd, 'annotation_function.m');
+    dbs_wd = strcat(dbs_wd, '\super_markers.txt');
+    if ispc
+        dbs_wd = strrep(dbs_wd, "\", "\\");
+    end
+    %markers = "C:\Users\ssromerogon\Documents\vscode_working_dir\scGEAToolbox_addson\matlab_annotation_new_dbs\super_markers.txt";
     
-    T = readtable(markers,'ReadVariableNames',false,'Delimiter','tab');
+    T = readtable(dbs_wd,'ReadVariableNames',false,'Delimiter','tab');
     T = convertvars(T,@iscellstr,"string");
     T.Var2 =  lower( string(T.Var2));
        
     % Look for specific database 
-    idx = contains(T.Var1, type_marker);
+    idx = contains(T.Var1, type_marker, "IgnoreCase", true);
     if any(idx)
         T = T(idx,: );
     end
-    
+       
     % Look for specific tissue_type
-    idx = contains(T.Var2, tissue_type);
+    idx = contains(T.Var2, tissue_type, "IgnoreCase", true);
     if any(idx)
         T = T(idx,: );
     end
     
     % Look for specific organism
-    idx = contains(T.Var2, organism);
+    idx = contains(T.Var2, organism, "IgnoreCase", true);
     if any(idx)
         T = T(idx,: );
     end
@@ -87,7 +91,7 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     %target_cells = [ "fibroblasts" "myofibroblasts" "caf"];
 
     %Look for specific cell types
-    idx = contains(T.Var2, target_cells);
+    idx = contains(T.Var2, target_cells, "IgnoreCase", true);
     if any(idx)
         T = T( idx,: );
     end
@@ -146,32 +150,30 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     clear Ttmp bool;
     % Finished database preparation... we may store this to do not redo it
     
-    
     fprintf("Intersected genes within DB and sce \n");
     % Dataset look for common genes within DB 
     
     gtmp = upper(sce_tmp.g);
     genes = upper(genes);
     [genes, idx, idx2 ]= intersect(gtmp, genes, 'stable');
-    %gtmp = gtmp(idx);
-    X = full( sce_tmp.X(idx,:) );
+    
     % Re-mapping information
     %genes = genes(idx2);
     scores = scores(idx2,:);
-    
+
+    %gtmp = gtmp(idx);
+    X =  pkg.norm_libsize(full(sce_tmp.X), 1e4);
+    X = log1p(X);
+    X = sc_transform(X);
+    X = sparse(X(idx,:));
+
     % Scores in db x gene now
     scores = scores';
     clear idx idx2;
-    
-    % Get cluster ids
-    %sce_tmp = sce_tmp.embedcells('umap2d', true, false, 2);
 
-    %cells_per_clus = 1000;
-    %nclusters = round(sce_tmp.numcells/cells_per_clus);
-    %clust_type = "kmeans";    
     %fprintf("Working on %d clusters %s \n",nclusters, clust_type);
     %sce_tmp = sce_tmp.clustercells(nclusters, clust_type, true);
-    sce_tmp = leiden_annotation_sparse(sce_tmp);
+    %sce_tmp = leiden_clustering_ann(sce_tmp, 0.7);
 
     ncell = size(X,2);
     cell_types = T.Var2;
@@ -183,26 +185,10 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     fprintf("Annotating %d cells in %d clusters... \n",ncell, nclus);
     score_record = zeros(nclus,5);
     db_record = strings(nclus,5);
-    markers_dv_save = strings(nclus,20);
     for iclus = 1:nclus
         fprintf("Working on cluster %d \n", iclus)
         cell_idx = find( clusters(iclus) == sce_tmp.c_cluster_id);
-        if false % Find makers?
-            % Findmarkers section
-            markers_dv = findMarkers_DVcluster(sce_tmp, iclus, 5000);
-            markers_dv_save(iclus,1:20) = markers_dv(1:20);
-            fprintf("DV markers size : %d \n", length(markers_dv) )     
-            [genes, idx, ~] = intersect(genes, markers_dv, 'stable');
-            fprintf("overlaping DV markers with DB: %d \n", length(genes));
-            Xtmp = X(idx, cell_idx);    
-            scores = scores(:,idx);
-        else    
-            Xtmp = X(:, cell_idx);
-        end
-        % End of find markers gene swapping
-        if std_bool
-            Xtmp = zscore(Xtmp);
-        end
+        Xtmp = X(:, cell_idx);
         Xtmp = scores*Xtmp;
         sum_score = sum(Xtmp,2);
         [maxval, idx] = maxk(sum_score,5);
@@ -213,7 +199,7 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     end
     T = table(clusters,db_record,score_record);
     writetable(T,"db_score_record.csv")
-    writematrix(markers_dv_save,'markers_dv_clusters.csv')
+    %writematrix(markers_dv_save,'markers_dv_clusters.csv')
 
     unique(sce_tmp.c_cell_type_tx)
     sce_final = sce_tmp;
