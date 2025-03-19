@@ -38,7 +38,7 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     % Marker database file
     dbs_wd = which('annotation_function');
     dbs_wd = erase(dbs_wd, 'annotation_function.m');
-    dbs_wd = strcat(dbs_wd, '\super_markers.txt');
+    dbs_wd = strcat(dbs_wd, 'super_markers.txt');
     if ispc
         dbs_wd = strrep(dbs_wd, "\", "\\");
     end
@@ -173,7 +173,7 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
 
     %fprintf("Working on %d clusters %s \n",nclusters, clust_type);
     %sce_tmp = sce_tmp.clustercells(nclusters, clust_type, true);
-    %sce_tmp = leiden_clustering_ann(sce_tmp, 0.7);
+    %sce_tmp = leiden_clustering_ann(sce_tmp, 2.5);
 
     ncell = size(X,2);
     cell_types = T.Var2;
