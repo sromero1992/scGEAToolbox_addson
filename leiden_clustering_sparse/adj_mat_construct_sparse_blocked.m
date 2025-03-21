@@ -6,6 +6,7 @@ function adjX = adj_mat_construct_sparse_blocked(sce, method, K, chunk_size)
     % chunk_size -> Number of rows to process in each chunk
     % OUTPUT:
     % adjX -------> Sparse adjacency matrix
+    % AUTHOR: Selim Romero, Texas A&M University
 
     % Input validation
     method = lower(method);

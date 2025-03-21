@@ -5,8 +5,7 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
     % K ---------> Number of neighbors
     % OUTPUT:
     % adjX ------> Adjacency matrix from cosine similarity and neighbors
-    % USAGE:
-    % 
+    % AUTHOR: Selim Romero, Texas A&M University
 
     % Input validation
     method = lower(method);

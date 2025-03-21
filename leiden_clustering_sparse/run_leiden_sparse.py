@@ -1,3 +1,4 @@
+# AUTHOR: Selim Romero, Texas A&M University
 # Define resolution parameter
 # Low resolution 0.1 to 1.0
 # Moderate resolution from 1.0 to 2.0

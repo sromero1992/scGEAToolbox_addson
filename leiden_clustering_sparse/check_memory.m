@@ -4,6 +4,7 @@ function [totalRAM, availableRAM, usedRAM] = check_memory()
     %   totalRAM     -> Total physical RAM (in GB)
     %   availableRAM -> Available physical RAM (in GB)
     %   usedRAM      -> Used physical RAM (in GB)
+    % AUTHOR: Selim Romero, Texas A&M University
 
     if ispc
         % Windows: Use memory function

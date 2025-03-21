@@ -8,9 +8,10 @@ function sce = leiden_clustering_ann(sce, res, species, method)
     % sce ------> SCE object containing Leiden clusters and corresponding annotation
     % Usage:
     % sce = leiden_annotation_sparse(sce, 'knn', 'mouse')
-    % 
     % If no annotation is wanted, use
     % sce = leiden_annotation_sparse(sce, 'knn', [])
+    % AUTHOR: Selim Romero, Texas A&M University
+    
     if nargin < 2; res = 2.0; end
     if nargin < 3; species = []; end
     if nargin < 4; method = 'knn'; end
