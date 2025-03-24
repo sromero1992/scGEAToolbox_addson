@@ -1,4 +1,4 @@
-function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
+function sce_tmp = annotation_function(sce_tmp,  type_marker, organism,  ...
                                     tissue_type, target_cells)
     
     if nargin < 2
@@ -146,8 +146,8 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
         val = sum(scores(ig,:));
         scores(ig,:) = scores(ig,:)./val;
     end
-    
     clear Ttmp bool;
+
     % Finished database preparation... we may store this to do not redo it
     
     fprintf("Intersected genes within DB and sce \n");
@@ -156,19 +156,17 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     gtmp = upper(sce_tmp.g);
     genes = upper(genes);
     [genes, idx, idx2 ]= intersect(gtmp, genes, 'stable');
-    
-    % Re-mapping information
-    %genes = genes(idx2);
-    scores = scores(idx2,:);
 
     %gtmp = gtmp(idx);
-    X =  pkg.norm_libsize(full(sce_tmp.X), 1e4);
+    % This normalization in the sub set is on purpose
+    % otherwise is memory expensive
+    X =  pkg.norm_libsize(full(sce_tmp.X(idx,:)), 1e4);
     X = log1p(X);
     X = sc_transform(X);
-    X = sparse(X(idx,:));
+    X = sparse(X);
 
-    % Scores in db x gene now
-    scores = scores';
+    % Scores in db x gene now and re-mapping information
+    scores = scores(idx2,:)';
     clear idx idx2;
 
     %fprintf("Working on %d clusters %s \n",nclusters, clust_type);
@@ -202,7 +200,6 @@ function sce_final = annotation_function(sce_tmp,  type_marker, organism,  ...
     %writematrix(markers_dv_save,'markers_dv_clusters.csv')
 
     unique(sce_tmp.c_cell_type_tx)
-    sce_final = sce_tmp;
     fprintf("Annotation finished!!!\n");
 end
 
