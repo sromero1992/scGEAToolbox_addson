@@ -29,7 +29,7 @@ function sce = leiden_clustering_ann(sce, res, species, method)
         env_bin = strrep(env_bin, "\", "\\");
     end
     % Linux format
-    env_bin = "/home/ssromerogon/anaconda3/envs/scanpy_env_311/bin/python3";
+    %env_bin = "/home/ssromerogon/anaconda3/envs/scanpy_env_311/bin/python3";
     
     % Initialize the Python environment
     pe = pyenv('Version', env_bin);

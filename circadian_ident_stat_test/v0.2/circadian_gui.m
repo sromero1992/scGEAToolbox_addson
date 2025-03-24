@@ -1,6 +1,7 @@
 function circadian_gui
     % Create the main figure window
-    hFig = figure('Name', 'SCE-Circadian Analysis GUI', 'Position', [100, 100, 1000, 600]);
+    hFig = figure('Name', 'SCE-Circadian Analysis GUI', 'Position', [100, 100, 1000, 600], ...
+        'DefaultUicontrolFontSize', 12, 'DefaultTextFontSize', 12); 
 
     % Define your custom plot types
     plot_types = {'Plot confident genes ', ...
@@ -28,20 +29,20 @@ function circadian_gui
    
     % Create dropdown for selecting plot_type
     uicontrol('Style', 'text', 'Position', [35, 400, 100, 20], 'String', 'Plot Type:');
-    hPlotType = uicontrol('Style', 'popupmenu', 'Position', [120, 400, 150, 20], ...
+    hPlotType = uicontrol('Style', 'popupmenu', 'Position', [120, 400, 170, 20], ...
                           'String', plot_types);
 
     % Create checkbox for selecting period12
-    hPeriod12 = uicontrol('Style', 'checkbox', 'Position', [70, 350, 150, 20], ...
+    hPeriod12 = uicontrol('Style', 'checkbox', 'Position', [65, 350, 210, 20], ...
                           'String', 'Period 12 (otherwise 24)');
 
 
     % Create button for Analysis
-    uicontrol('Style', 'pushbutton', 'Position', [50, 300, 150, 30], ...
+    uicontrol('Style', 'pushbutton', 'Position', [50, 300, 170, 30], ...
               'String', 'Analyze (Faster)', 'Callback', @analyzeButtonCallback);
 
     % Create button for Plot All
-    uicontrol('Style', 'pushbutton', 'Position', [50, 250, 150, 30], ...
+    uicontrol('Style', 'pushbutton', 'Position', [50, 250, 170, 30], ...
               'String', 'Plot Genes & Analyze', 'Callback', @plotAllGenesCallback);
 
     
@@ -57,11 +58,14 @@ function circadian_gui
               'String', 'Plot single Gene', 'Callback', @plotGeneCallback);
 
     % Create checkbox for printing sc-data
-    hPrintSCdata = uicontrol('Style', 'checkbox', 'Position', [70, 70, 150, 20], ...
+    hPrintSCdata = uicontrol('Style', 'checkbox', 'Position', [65, 70, 230, 20], ...
                           'String', 'Print sc-data (single gene)');
 
     % Create axes for plotting
     hPlotAxes = axes('Parent', hFig, 'Position', [0.4, 0.1, 0.55, 0.8]);
+
+    % Set default font size for axes labels and title
+    set(hPlotAxes, 'FontSize', 12); 
 
     function defineTmetaAndPlotCallback(~, ~)
         % Get unique batches from sce.c_batch_id

@@ -87,11 +87,16 @@ function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, axHandl
 
     % Set plot limits and labels
     xlim([t0 tf]);
-    title(sprintf('Gene - %s | p-value: %.3f | Phase: %.3f | NumCells: %d' ,...
-                  T1.Genes{gene_idx}, T1.pvalue(gene_idx), ...
-                  T1.Acrophase_24(gene_idx), ncell_cummu ));
-    xlabel('Time (hrs)');
-    ylabel('Expression');
+    % Modify the x-axis ticks to show every 1 hour
+    xticks(t0:tint:tf);
+    % Titles and legends
+    title_str = sprintf('Gene - %s | p-value: %.3f | Phase: %.3f | NumCells: %d' ,...
+                      T1.Genes{gene_idx}, T1.pvalue(gene_idx), ...
+                      T1.Acrophase_24(gene_idx), ncell_cummu );
+    title(title_str, 'FontSize', 16); % Increase title font size
+    xlabel('Time (hrs)', 'FontSize', 14); % Increase x-axis label font size
+    ylabel('Expression', 'FontSize', 14); % Increase y-axis label font size
+    set(gca, 'FontSize', 12); % Increase axis numbers font size
     if print_scdata
         legend({'Sine-fitted expression', 'Mean Expression (Rzts)', ...
             'sc-data', 'Phase'}, 'Location', 'northwest');
