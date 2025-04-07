@@ -1,6 +1,6 @@
 function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
-    if nargin < 2; nlevels = 1; end
-    if nargin < 3; res = 1.0; end
+    if nargin < 2; nlevels = 2; end
+    if nargin < 3; res = 2.0; end
 
     % Read and process the database file only once
     dbs_wd = which('annotation_levels_gca');
@@ -43,7 +43,13 @@ function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
     [genes, idx, idx2] = intersect(gtmp, genes, 'stable');
     X = pkg.norm_libsize(full(sce_tmp.X(idx, :)), 1e4);
     X = log1p(X);
-    X = sc_transform(X);
+    Xp = sc_transform(X);
+    if max(max(Xp)) > 0
+        X = Xp;
+    else
+        fprintf("Pearson residual transformation failed, rolling back...\n");
+    end
+    clear Xp
     X = sparse(X);
     scores = scores(idx2, :)';
     clear idx idx2;
@@ -55,9 +61,9 @@ function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
     for iclus = 1:nclus
         fprintf("Working on cluster %d \n", iclus);
         cell_idx = find(clusters(iclus) == sce_tmp.c_cluster_id);
-        Xtmp = X(:, cell_idx);
+        Xtmp = full(X(:, cell_idx));
         Xtmp = scores * Xtmp;
-        sum_score = sum(Xtmp, 2);
+        sum_score = sum(Xtmp, 2,'omitnan');
         [~, idx] = maxk(sum_score, 1);
         fprintf("Identified cell type: %s \n", current_cell_types_db(idx));
         sce_tmp.c_cell_type_tx(cell_idx) = current_cell_types_db(idx);
@@ -86,7 +92,11 @@ function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
             [~, idx, idx2] = intersect(gtmp, genes, 'stable');
             X = pkg.norm_libsize(full(sce_tmp_subset.X(idx, :)), 1e4);
             X = log1p(X);
-            X = sc_transform(X);
+            Xp = sc_transform(X);
+            if max(max(Xp)) > 0
+                X = Xp;
+            end
+            clear Xp
             X = sparse(X);
             scores = scores(idx2, :)';
             clear idx idx2;
@@ -97,9 +107,9 @@ function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
             for iclus = 1:nclus
                 fprintf("Working on cluster %d \n", iclus);
                 cell_idx = find(clusters(iclus) == sce_tmp_subset.c_cluster_id);
-                Xtmp = X(:, cell_idx);
+                Xtmp = full( X(:, cell_idx) );
                 Xtmp = scores * Xtmp;
-                sum_score = sum(Xtmp, 2);
+                sum_score = sum(Xtmp, 2,'omitnan');
                 [~, idx] = maxk(sum_score, 1);
                 fprintf("Identified cell type: %s \n", sub_cell_types_db(idx));
                 sce_tmp_subset.c_cell_type_tx(cell_idx) = sub_cell_types_db(idx);
@@ -136,8 +146,8 @@ function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
 
     for i = 1:num_cells
         % Find the last non-empty level
-        last_level = find(string_matrix(i, :) ~= "", 1, 'last');
-
+        %last_level = find(string_matrix(i, :) ~= "", 1, 'last');
+        last_level = 2;
         % Reconstruct the string
         if ~isempty(last_level)
             sce_tmp.c_cell_type_tx(i) = string_matrix(i, last_level);
