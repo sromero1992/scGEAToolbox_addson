@@ -43,13 +43,13 @@ function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
     [genes, idx, idx2] = intersect(gtmp, genes, 'stable');
     X = pkg.norm_libsize(full(sce_tmp.X(idx, :)), 1e4);
     X = log1p(X);
-    Xp = sc_transform(X);
-    if max(max(Xp)) > 0
-        X = Xp;
-    else
-        fprintf("Pearson residual transformation failed, rolling back...\n");
-    end
-    clear Xp
+    % Xp = sc_transform(X);
+    % if max(max(Xp)) > 0
+    %     X = Xp;
+    % else
+    %     fprintf("Pearson residual transformation failed, rolling back...\n");
+    % end
+    % clear Xp
     X = sparse(X);
     scores = scores(idx2, :)';
     clear idx idx2;
