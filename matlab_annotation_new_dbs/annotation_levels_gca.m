@@ -1,6 +1,6 @@
 function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
     if nargin < 2; nlevels = 2; end
-    if nargin < 3; res = 2.0; end
+    if nargin < 3; res = 1.0; end
 
     % Read and process the database file only once
     dbs_wd = which('annotation_levels_gca');
@@ -146,8 +146,8 @@ function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
 
     for i = 1:num_cells
         % Find the last non-empty level
-        %last_level = find(string_matrix(i, :) ~= "", 1, 'last');
-        last_level = 2;
+        last_level = find(string_matrix(i, :) ~= "", 1, 'last');
+        %last_level = 2;
         % Reconstruct the string
         if ~isempty(last_level)
             sce_tmp.c_cell_type_tx(i) = string_matrix(i, last_level);
