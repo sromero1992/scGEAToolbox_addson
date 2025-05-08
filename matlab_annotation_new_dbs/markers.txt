@@ -1,0 +1,14 @@
+Endothelial	Pecam1	Flt1	Flt4
+Macrophages	Cd68	Ctss	Cd14	Lyz2	Csf1r	Mrc1	Itgax	Aif1
+T cells	Cd3e	Cd8a	Cd4	Trbc2
+B cells	Ms4a1	Cd19	Cd79a
+NK cells	Ncr1	Itgae
+Plascytoid dendritic cells	Siglech	Bst2	Ccr9
+Dendritic cells	Clec9a	Xcr1
+Neutrophils	Cxcr2	Csf3r
+Epithelial cells	Krt18	Krt19	Epcam
+Mast cells	Tpsb2	Cpa3	Ms4a2
+Adipocytes	Adipoq	Plin1
+Keratinocytes	Krt1	Krt5	Krt14
+Myocytes	Acta1	Myh1
+Fibroblasts	Fn1	Dcn	Pdgfra	Col1a1	Col3a1 Pdpn
