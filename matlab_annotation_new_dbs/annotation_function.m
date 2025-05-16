@@ -162,7 +162,7 @@ function sce_tmp = annotation_function(sce_tmp,  type_marker, organism,  ...
     % otherwise is memory expensive
     X =  pkg.norm_libsize(full(sce_tmp.X(idx,:)), 1e4);
     X = log1p(X);
-    X = sc_transform(X);
+    %X = sc_transform(X);
     X = sparse(X);
 
     % Scores in db x gene now and re-mapping information
