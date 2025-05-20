@@ -51,7 +51,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
 
     % Initialize parallel pool if not already running
     if isempty(gcp('nocreate'))
-        numCores = ceil(feature('numcores')/4);
+        numCores = ceil(feature('numcores')/2);
         numCores = max(2,numCores);
         parpool(numCores);
         disp(['Parallel pool initialized with ', num2str(numCores), ' cores.']);
@@ -88,6 +88,8 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         idx = find(sce.c_cell_type_tx == cell_type);
         sce_sub = sce.selectcells(idx);
         %sce_sub = sce_sub.qcfilter;
+        % Light QC to remove non needed genes and poor cells
+        sce_sub = sce_sub.qcfilter(500, 0.20, 10);
 
         % Normalizing count data for that cell type
         X = full(sce_sub.X);
