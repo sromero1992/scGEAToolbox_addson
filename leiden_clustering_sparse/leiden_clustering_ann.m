@@ -60,7 +60,7 @@ function sce = leiden_clustering_ann(sce, res, use_hvgs, species, method)
         case 'mnn'
             n_neighbors = 100; % Larger neighbors -> fewer clusters
             if chunked_strategy
-                adjX = adj_mat_construct_sparse_blocked(sce, 'mnn', n_neighbors, 10000, use_hvgs;
+                adjX = adj_mat_construct_sparse_blocked(sce, 'mnn', n_neighbors, 10000, use_hvgs);
             else
                 adjX = adj_mat_construct_sparse(sce, 'mnn', n_neighbors, use_hvgs);
             end
@@ -68,9 +68,9 @@ function sce = leiden_clustering_ann(sce, res, use_hvgs, species, method)
         case 'knn'
             n_neighbors = 15; % Smaller neighbors -> more clusters
             if chunked_strategy
-                adjX = adj_mat_construct_sparse_blocked(sce, 'knn', n_neighbors, 10000);
+                adjX = adj_mat_construct_sparse_blocked(sce, 'knn', n_neighbors, 10000, use_hvgs);
             else
-                adjX = adj_mat_construct_sparse(sce, 'knn', n_neighbors);
+                adjX = adj_mat_construct_sparse(sce, 'knn', n_neighbors, use_hvgs);
             end
 
         otherwise
