@@ -1,4 +1,4 @@
-function adjX = adj_mat_construct_sparse_blocked(sce, method, K, chunk_size)
+function adjX = adj_mat_construct_sparse_blocked(sce, method, K, chunk_size, use_hvgs)
     % INPUT:
     % sce --------> SCE object 
     % method -----> Neighbor method ('knn' or 'mnn')
@@ -27,8 +27,12 @@ function adjX = adj_mat_construct_sparse_blocked(sce, method, K, chunk_size)
     % Normalize and preprocess input data (genes by cells)
     X = sce.X; 
     X = sc_norm(X, 'type', 'libsize'); 
+    if use_hvgs
+        [~, X] = sc_splinefit(X, sce.g);
+        X = X(1:nhvgs, :);
+    end
     X = log1p(X)'; % (cells by genes)
-    [U, ~, ~] = svds(X', 50); % (cells bu meta-genes)
+    [U, ~, ~] = svds(X', 50); % (cells by meta-genes)
     X = X * U;
     fprintf("Time for preparing data: %f \n", toc);
 

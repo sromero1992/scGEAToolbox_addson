@@ -10,7 +10,7 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
     % sce = umap_sc_wrapper(sce);
 
     if nargin < 2 || isempty(ndim); ndim = 2; end
-    if nargin < 3 || isempty(use_hvgs); use_hvgs = false; end
+    if nargin < 3 || isempty(use_hvgs); use_hvgs = true; end
     if nargin < 4 || isempty(my_res); my_res = 2.0; end
 
     file_h5ad = 'sce_data.h5ad';
@@ -25,8 +25,7 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
     %-----------------------------------------------------------------
     % Set the Python environment (Python 3.11)
     % Windows format
-    %env_bin = 'F:\Anaconda\envs\scanpy_env_311\python.exe';
-    env_bin = 'C:\Users\ssromerogon\.conda\envs\scanpy_env_311\python.exe';
+    env_bin = 'C:\Local_install\miniconda3\envs\scanpy_env_311\python.exe';
     if ispc
         env_bin = strrep(env_bin,"\","\\");
     end

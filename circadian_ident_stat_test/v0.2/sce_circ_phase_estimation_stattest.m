@@ -1,5 +1,5 @@
 function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, period12, ...
-                                    custom_genelist, custom_celltype)
+                                    custom_genelist, custom_celltype, plothist)
 
     % USAGE:
     % times = [0 3 6 9 12 15 18 21]'; 
@@ -23,6 +23,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     if nargin < 4 || isempty(period12); period12 = false; end
     if nargin < 5 || isempty(custom_genelist); custom_genelist = {}; end
     if nargin < 6 || isempty(custom_celltype); custom_celltype = {}; end
+    if nargin < 7 || isempty(plothist); plothist = true; end
 
     if period12 
         disp("Circadian identification with 12 hrs period...")
@@ -260,6 +261,10 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         ftable_name = strcat(fname, "_macro_circadian_ZTs.csv");
         writetable(T2, ftable_name);
     
+        if plothist
+            generateHeatmap_circ_simple(sce_sub, cell_type, true, "", false)
+        end
+
         info_p_type(icell_type, :) = [sce_sub.NumCells, sce_sub.NumGenes, ...
                                        length(T1.Genes), num_conf_g, ...
                                        num_n_conf_g, num_adj_conf_g];

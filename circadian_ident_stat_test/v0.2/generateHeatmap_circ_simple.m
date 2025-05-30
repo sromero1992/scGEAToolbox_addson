@@ -154,7 +154,7 @@
         end
 
         % Specify the output file name for the table (using Dwork which is already filtered)
-        output_table_fname = strcat(fname_prefix, "_analysis_results.csv");
+        output_table_fname = strcat(fname_prefix, "_Dwork_analysis_results.csv");
         writetable(Dwork, output_table_fname);
 
         % Save figure

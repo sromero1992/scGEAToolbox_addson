@@ -1,4 +1,4 @@
-function adjX = adj_mat_construct_sparse(sce, method, K)
+function adjX = adj_mat_construct_sparse(sce, method, K, use_hvgs)
     % INPUT:
     % sce -------> SCE object 
     % method ----> Neighbor method (knn or mnn)
@@ -8,6 +8,7 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
     % AUTHOR: Selim Romero, Texas A&M University
 
     % Input validation
+    nhvgs = 2000;
     method = lower(method);
     if ~ismember(method, {'knn', 'mnn'})
         error('Method must be either ''knn'' or ''mnn''.');
@@ -20,14 +21,16 @@ function adjX = adj_mat_construct_sparse(sce, method, K)
     tic;
     % X in cells by genes basis and normalize/scale (cells by genes mat)
     X = sce.X; 
-    % This can be turned off for RNA+ATAC
     X = sc_norm(X,'type','libsize');
+    if use_hvgs
+        [~, X] = sc_splinefit(X, sce.g);
+        X = X(1:nhvgs, :);
+    end
+    % This can be turned off for RNA+ATAC
     X = log1p(X)';
     %X = X';
 
     % Perform PCA up to top 50 components
-    %X = svdpca(X, 50, 'random'); % Actually faster but looks different...
-    %X = svdpca(X, 50, 'svd');
     [U, ~, ~] = svds(X', 50);
     X = X * U;
     time_prep = toc;

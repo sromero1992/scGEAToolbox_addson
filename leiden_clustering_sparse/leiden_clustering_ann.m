@@ -1,4 +1,4 @@
-function sce = leiden_clustering_ann(sce, res, species, method)
+function sce = leiden_clustering_ann(sce, res, use_hvgs, species, method)
     % leiden_clustering: Computes Leiden clustering interfaced from Python and annotates if desired
     % with Mutual Nearest Neighbors (MNN) or K-Nearest Neighbors (KNN).
     % INPUT:
@@ -13,8 +13,9 @@ function sce = leiden_clustering_ann(sce, res, species, method)
     % AUTHOR: Selim Romero, Texas A&M University
     
     if nargin < 2; res = 2.0; end
-    if nargin < 3; species = []; end
-    if nargin < 4; method = 'knn'; end
+    if nargin < 3; use_hvgs = false; end
+    if nargin < 4; species = []; end
+    if nargin < 5; method = 'knn'; end
 
     species = lower(species);
     method = lower(method);
@@ -59,9 +60,9 @@ function sce = leiden_clustering_ann(sce, res, species, method)
         case 'mnn'
             n_neighbors = 100; % Larger neighbors -> fewer clusters
             if chunked_strategy
-                adjX = adj_mat_construct_sparse_blocked(sce, 'mnn', n_neighbors, 10000);
+                adjX = adj_mat_construct_sparse_blocked(sce, 'mnn', n_neighbors, 10000, use_hvgs;
             else
-                adjX = adj_mat_construct_sparse(sce, 'mnn', n_neighbors);
+                adjX = adj_mat_construct_sparse(sce, 'mnn', n_neighbors, use_hvgs);
             end
 
         case 'knn'
