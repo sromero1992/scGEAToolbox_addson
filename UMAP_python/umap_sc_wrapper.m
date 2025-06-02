@@ -16,10 +16,10 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
     file_h5ad = 'sce_data.h5ad';
     file_out = 'leiden_umap.csv';
     npca = 50;
-    mt_pct = 20.0;
-    min_genes0 = 200;
-    min_cells0 = 3;
-    max_counts = 1.0e7;
+    mt_pct = 25.0;
+    min_genes0 = 100;
+    min_cells0 = 1;
+    max_counts = 1.0e20;
     algo_cluster = 'leidenalg';
 
     %-----------------------------------------------------------------
