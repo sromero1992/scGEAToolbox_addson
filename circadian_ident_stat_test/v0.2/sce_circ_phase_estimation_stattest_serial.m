@@ -1,5 +1,5 @@
 function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, period12, ...
-                                    custom_genelist, custom_celltype)
+                                    custom_genelist, custom_celltype, plothist)
 
     % USAGE:
     % times = [0 3 6 9 12 15 18 21]'; 
@@ -23,6 +23,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     if nargin < 4 || isempty(period12); period12 = false; end
     if nargin < 5 || isempty(custom_genelist); custom_genelist = {}; end
     if nargin < 6 || isempty(custom_celltype); custom_celltype = {}; end
+    if nargin < 7 || isempty(plothist); plothist = true; end
 
     if period12 
         disp("Circadian identification with 12 hrs period...")
@@ -49,23 +50,23 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     disp("New batches")
     disp(batches')
 
-    % Initialize parallel pool if not already running
-    if isempty(gcp('nocreate'))
-        numCores = ceil(feature('numcores')/2)-2;
-        parpool(numCores);
-        disp(['Parallel pool initialized with ', num2str(numCores), ' cores.']);
-
-        % Warm up the parallel pool (optional but recommended)
-        disp('Warming up parallel pool...');
-        tic; % Start timer for warm-up
-        parfor i = 1:numCores
-            pause(0.01); % Small task to initialize workers
-        end
-        warmUpTime = toc; % Stop timer and get elapsed time
-        disp(['Parallel pool warmed up in ', num2str(warmUpTime), ' seconds.']);
-    end
-
-
+    % % Initialize parallel pool if not already running
+    % if isempty(gcp('nocreate'))
+    %     numCores = ceil(feature('numcores')/2);
+    %     numCores = max(2,numCores);
+    %     parpool(numCores);
+    %     disp(['Parallel pool initialized with ', num2str(numCores), ' cores.']);
+    % 
+    %     % Warm up the parallel pool (optional but recommended)
+    %     disp('Warming up parallel pool...');
+    %     tic; % Start timer for warm-up
+    %     parfor i = 1:numCores
+    %         pause(0.01); % Small task to initialize workers
+    %     end
+    %     warmUpTime = toc; % Stop timer and get elapsed time
+    %     disp(['Parallel pool warmed up in ', num2str(warmUpTime), ' seconds.']);
+    % end
+    
     % All cell types available
     cell_type_list = unique(sce.c_cell_type_tx);
     ncell_types = length(cell_type_list);
@@ -87,6 +88,8 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         idx = find(sce.c_cell_type_tx == cell_type);
         sce_sub = sce.selectcells(idx);
         %sce_sub = sce_sub.qcfilter;
+        % Light QC to remove non needed genes and poor cells
+        sce_sub = sce_sub.qcfilter(500, 0.20, 10);
 
         % Normalizing count data for that cell type
         X = full(sce_sub.X);
@@ -132,10 +135,10 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         end
    
         % Gene blocking parameters
-        if sce.NumCells > 10000
-            block_size = 500; % Adjust block size as needed
+        if sce.NumCells > 15000
+            block_size = 50; % Adjust block size as needed
         else
-
+            block_size = 500; % Adjust block size as needed
         end
         num_genes = length(gene_list);
         num_blocks = ceil(num_genes / block_size);
@@ -170,7 +173,8 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
                 gene_indices(gene_index_block) = find(sce_sub.g == string(current_gene_block{gene_index_block}));
             end
     
-            parfor igene_block = 1:num_genes_in_block
+            %parfor igene_block = 1:num_genes_in_block
+            for igene_block = 1:num_genes_in_block
                 ig = gene_indices(igene_block);
                 Xg_zts = {};
                 for it = 1:nzts
@@ -257,6 +261,10 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         ftable_name = strcat(fname, "_macro_circadian_ZTs.csv");
         writetable(T2, ftable_name);
     
+        if plothist
+            generateHeatmap_circ_simple(sce_sub, cell_type, true, "", false)
+        end
+
         info_p_type(icell_type, :) = [sce_sub.NumCells, sce_sub.NumGenes, ...
                                        length(T1.Genes), num_conf_g, ...
                                        num_n_conf_g, num_adj_conf_g];
