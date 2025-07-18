@@ -52,7 +52,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
 
     % Initialize parallel pool if not already running
     if isempty(gcp('nocreate'))
-        numCores = ceil(feature('numcores')/2);
+        numCores = ceil(feature('numcores')/4);
         numCores = max(2,numCores);
         parpool(numCores);
         disp(['Parallel pool initialized with ', num2str(numCores), ' cores.']);
@@ -94,9 +94,16 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
 
         % Normalizing count data for that cell type
         X = full(sce_sub.X);
-        X = sc_norm(X);
-        X = log1p(X);
-        %X = sc_impute(X);
+        use_magic = true;
+        if use_magic 
+            % This for cancer cells
+            X = sc_impute(X, 'MAGIC');
+        else
+            % This is regular cells pipeline
+            X = sc_norm(X);
+            X = log1p(X)
+        end
+        
         X = sparse(X);
         sce_sub.X = X;
         clear X idx;
