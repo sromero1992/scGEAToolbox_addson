@@ -1,4 +1,4 @@
-function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12)
+function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12, norm_str)
     % Plot identified circadian genes according to criteria
     % INPUT:
     % sce =========> Single cell experiment object
@@ -22,6 +22,7 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12)
 
     if nargin < 4 || isempty(plot_type); plot_type = 1; end
     if nargin < 5 || isempty(period12); period12 = false; end
+    if nargin < 6 || isempty(norm_str); norm_str ='lib_size' ; end
 
     % Define time variables
     tmeta.times = sortrows(tmeta.times);
@@ -35,7 +36,9 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12)
     tval = t0 : 0.1 : tf;
 
     % Compute circadian information for cust_cells
-    [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, plot_type == 1, period12, [], cust_cells);
+    [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, plot_type == 1, ...
+                                           period12, [], cust_cells, false, ...
+                                           norm_str);
 
     disp("Final number of circadian genes: " + size(T1,1))
 

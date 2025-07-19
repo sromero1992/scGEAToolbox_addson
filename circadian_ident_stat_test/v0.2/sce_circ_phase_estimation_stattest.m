@@ -1,5 +1,5 @@
 function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, period12, ...
-                                    custom_genelist, custom_celltype, plothist)
+                                    custom_genelist, custom_celltype, plot_heat, norm_str)
 
     % USAGE:
     % times = [0 3 6 9 12 15 18 21]'; 
@@ -23,7 +23,8 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     if nargin < 4 || isempty(period12); period12 = false; end
     if nargin < 5 || isempty(custom_genelist); custom_genelist = {}; end
     if nargin < 6 || isempty(custom_celltype); custom_celltype = {}; end
-    if nargin < 7 || isempty(plothist); plothist = true; end
+    if nargin < 7 || isempty(plot_heat); plot_heat = true; end
+    if nargin < 8 || isempty(norm_str); norm_str ='lib_size'; end
 
     if period12 
         disp("Circadian identification with 12 hrs period...")
@@ -67,6 +68,21 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         disp(['Parallel pool warmed up in ', num2str(warmUpTime), ' seconds.']);
     end
 
+    disp(['Normalization used: ', norm_str]);
+    % Normalize full set
+    %X = full(sce.X);
+    if strcmp(norm_str, 'lib_size')
+        % This is regular cells pipeline
+        %X = sc_norm(full(sce.X));
+        X = pkg.norm_libsize(sce.X, 1e4);
+        X = log1p(sce.X);
+    else % 'magic_impute'
+        % This for cancer cells
+        X = sc_impute(sce.X, 'MAGIC');
+    end
+    X = sparse(X);
+    sce.X = X;
+    clear X;
 
     % All cell types available
     cell_type_list = unique(sce.c_cell_type_tx);
@@ -76,7 +92,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     nztps = length(unique(tmeta.new_labels));
     
     info_p_type = zeros(ncell_types, 6);
-    for icell_type = 1:ncell_types   
+    for icell_type = 1:ncell_types
         % Extract count matrix for ith cell type
         cell_type = cell_type_list(icell_type);
         if ~isempty(custom_celltype)
@@ -90,23 +106,24 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         sce_sub = sce.selectcells(idx);
         %sce_sub = sce_sub.qcfilter;
         % Light QC to remove non needed genes and poor cells
-        sce_sub = sce_sub.qcfilter(500, 0.20, 10);
+        %sce_sub = sce_sub.qcfilter(500, 0.20, 10);
 
-        % Normalizing count data for that cell type
-        X = full(sce_sub.X);
-        use_magic = true;
-        if use_magic 
-            % This for cancer cells
-            X = sc_impute(X, 'MAGIC');
-        else
-            % This is regular cells pipeline
-            X = sc_norm(X);
-            X = log1p(X)
-        end
-        
-        X = sparse(X);
-        sce_sub.X = X;
-        clear X idx;
+        % % Normalizing count data for that cell type
+        % X = full(sce_sub.X);
+        % use_magic = true;
+        % if use_magic 
+        %     % This for cancer cells
+        %     X = sc_impute(X, 'MAGIC');
+        % else
+        %     % This is regular cells pipeline
+        %     %X = sc_norm(X);
+        %     X = pkg.norm_libsize(full(X), 1e4);
+        %     X = log1p(X)
+        % end
+        % 
+        % X = sparse(X);
+        % sce_sub.X = X;
+        clear idx;
 
         if isempty(custom_genelist)
             disp("Circadian analysis for all genes");
@@ -268,7 +285,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         ftable_name = strcat(fname, "_macro_circadian_ZTs.csv");
         writetable(T2, ftable_name);
     
-        if plothist
+        if plot_heat
             generateHeatmap_circ_simple(sce_sub, cell_type, true, "", false)
         end
 

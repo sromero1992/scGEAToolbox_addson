@@ -1,4 +1,5 @@
-function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, axHandle, print_scdata)
+function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, ...
+                            axHandle, print_scdata, norm_str)
     % Plot identified circadian gene for the specified custom gene
 
     % Ensure required inputs
@@ -6,6 +7,7 @@ function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, axHandl
     if nargin < 5 || isempty(cust_gene); error('Custom gene must be specified.'); end
     if nargin < 6 || isempty(axHandle); error('Axes handle must be specified.'); end
     if nargin < 7 || isempty(print_scdata); print_scdata = false; end
+    if nargin < 8 || isempty(norm_str); norm_str = 'lib_size'; end
 
     % Define time variables from metadata
     tmeta.times = sortrows(tmeta.times); % Sort times if they aren't in order
@@ -17,7 +19,8 @@ function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, axHandl
     tval = t0:0.1:tf; % Finer time points for sine-fitted values
 
     % Compute circadian information for the custom gene and cell type
-    [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, false, period12, cust_gene, cust_cells);
+    [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, false, period12, ...
+                                          cust_gene, cust_cells, false, norm_str);
     
     % Find the specified gene in the results
     gene_idx = find(strcmp(T1.Genes, cust_gene));
@@ -25,12 +28,21 @@ function sce_circ_plot_gene(sce, tmeta, cust_cells, period12, cust_gene, axHandl
         error('Specified gene not found in the dataset.');
     end
 
+    if strcmp(norm_str, 'lib_size')
+        % This is regular cells pipeline
+        %X = sc_norm(full(sce.X));
+        X = pkg.norm_libsize(sce.X, 1e4);
+        X = log1p(sce.X);
+    else % 'magic_impute'
+        % This for cancer cells
+        X = sc_impute(sce.X, 'MAGIC');
+    end
+    sce.X = X;
+    clear X;
+
     % Subset and normalize cells
     ic0 = find(sce.c_cell_type_tx == cust_cells);
     sce_sub = sce.selectcells(ic0);
-    %sce_sub = sce_sub.qcfilter;
-    sce_sub.X =sc_norm( full(sce_sub.X) );
-    sce_sub.X = log1p( sce_sub.X );
 
     ig = find(sce_sub.g == cust_gene);
 

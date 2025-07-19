@@ -1,5 +1,7 @@
  % Include the heatmap generation function here (or ensure it's in your MATLAB path)
-    function generateHeatmap_circ_simple(sce, celltype, strict, customName, circ)
+    function generateHeatmap_circ_simple(sce, celltype, strict, customName, circ, norm_str)
+        if nargin < 6 || isempty(norm_str); norm_str = 'lib_size'; end
+
         % Specify the file name for gene expression data
         fname = strcat(celltype, "_period_24__macro_circadian_analysis.csv");
         
@@ -32,6 +34,22 @@
             disp(height(Dwork))
             return;
         end
+
+        % Normalize full set
+        %X = full(sce.X);
+        if strcmp(norm_str, 'lib_size')
+            % This is regular cells pipeline
+            %X = sc_norm(full(sce.X));
+            X = pkg.norm_libsize(sce.X, 1e4);
+            X = log1p(sce.X);
+        else % 'magic_impute'
+            % This for cancer cells
+            X = sc_impute(sce.X, 'MAGIC');
+        end
+        X = sparse(X);
+        sce.X = X;
+        clear X;
+
         % Extract circadian gene list for specified cell type
         gl = string(Dwork.Genes);
         ic = strcmpi(sce.c_cell_type_tx, celltype);
@@ -39,8 +57,7 @@
         % Extract expression data for circadian genes and specified cell type
         X = sce.X(ig, ic);
         g = sce.g(ig);
-        % Normalize data and create new SingleCellExperiment object
-        X = sc_norm(X);
+
         sce_new = SingleCellExperiment(X, g);
         sce_new.c_batch_id = sce.c_batch_id(ic);
         sce_new.c_cell_type_tx = sce.c_cell_type_tx(ic);
@@ -53,10 +70,11 @@
         for igs = 1:ng
             for ib = 1:nt
                 % Ensure batch ID comparison is robust to type (char/string)
-                 ic = ismember(sce_new.c_batch_id, time_batches(ib));
+                ic = ismember(sce_new.c_batch_id, time_batches(ib));
                 gzts(ib, igs) = mean(sce_new.X(igs, ic), 'omitnan');
             end
         end
+        
         % Scale data with chosen normalization method
         norm_type = 'zscore';  % Choose normalization type: 'zscore', 'norm', 'scale', 'center'
         switch norm_type
