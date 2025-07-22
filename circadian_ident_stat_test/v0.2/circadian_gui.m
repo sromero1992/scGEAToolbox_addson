@@ -111,7 +111,7 @@ function circadian_gui
         for i = 1:num_batches
             current_label = old_labels{i};
             % Check if the label starts with 'ZT' and has 4 characters (e.g., 'ZT00', 'ZT03')
-            if startsWith(current_label, 'ZT') && length(current_label) == 4
+            if startsWith(current_label, 'ZT') && strlength(current_label) == 4
                 zt_str = current_label(3:4); % Extract the numeric part (e.g., '00', '03')
                 zt_val = str2double(zt_str);
                 if ~isnan(zt_val) % Ensure it's a valid number

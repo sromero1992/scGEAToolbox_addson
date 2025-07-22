@@ -91,7 +91,7 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     % Number of time points
     nztps = length(unique(tmeta.new_labels));
     
-    info_p_type = zeros(ncell_types, 6);
+    info_p_type = zeros(ncell_types, 9);
     for icell_type = 1:ncell_types
         % Extract count matrix for ith cell type
         cell_type = cell_type_list(icell_type);
@@ -177,6 +177,8 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         mesor = zeros(num_genes,1);
         R0 = zeros(num_genes,nzts);
         p_value = zeros(num_genes,1);
+        rho = zeros(num_genes,1);
+        p_value_rho = zeros(num_genes,1);
 
         for block_idx = 1:num_blocks
             start_idx = (block_idx - 1) * block_size + 1;
@@ -191,7 +193,9 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
             tmp_p_value = zeros(num_genes_in_block, 1);
             tmp_R0 = zeros(num_genes_in_block, nzts);
             tmp_mesor = zeros(num_genes_in_block, 1);
-    
+            tmp_rho = zeros(num_genes_in_block, 1);
+            tmp_p_value_rho = zeros(num_genes_in_block, 1);
+
             % Create gene index lookup table for current block
             gene_indices = zeros(num_genes_in_block,1);
             for gene_index_block = 1:num_genes_in_block
@@ -211,8 +215,12 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
                         tmp_R0(igene_block, it) = NaN;
                     end
                 end
-                [tmp_acro(igene_block), tmp_amp(igene_block), tmp_T(igene_block), tmp_mesor(igene_block), tmp_p_value(igene_block)] = ...
-                           estimate_phaseR(Xg_zts, time_step, period12, 'Ftest');
+                [tmp_acro(igene_block), tmp_amp(igene_block), ...
+                 tmp_T(igene_block), tmp_mesor(igene_block), ...
+                 tmp_p_value(igene_block), tmp_rho(igene_block), ...
+                 tmp_p_value_rho(igene_block)] = ...
+                       estimate_phaseR(Xg_zts, time_step, ...
+                       period12, 'Ftest');
             end
     
             % Aggregate results for the current block
@@ -222,7 +230,9 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
             mesor(start_idx:end_idx) = tmp_mesor;
             R0(start_idx:end_idx, :) = tmp_R0;
             p_value(start_idx:end_idx) = tmp_p_value;
-    
+            rho(start_idx:end_idx) = tmp_rho;
+            p_value_rho(start_idx:end_idx) = tmp_p_value_rho;
+
             % Clear temporary variables to free memory
             clear tmp_acro tmp_amp tmp_T tmp_mesor tmp_R0 tmp_p_value current_gene_block gene_indices;
     
@@ -231,7 +241,6 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
             progressbar(progress);
         end
         
-
         clear tmp_mesor tmp_T tmp_amp tmp_acro;
 
         acro_formatted = acro;
@@ -240,12 +249,14 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
     
         % Pvalue adjusted with Benjamini-Hochberg (BH) Procedure
         p_adj = bh_adjust_pvalues(p_value);
+        p_adj_rho = bh_adjust_pvalues(p_value_rho);
 
-        T1 = table(gene_list, amp, abs(amp), mesor, acro, ...
-                                      acro_formatted, T, p_value, p_adj);
-        
+        T1 = table(gene_list, amp, abs(amp), mesor, acro, acro_formatted, T, ...
+                  p_value, p_adj, rho, p_value_rho, p_adj_rho);
+
         T1.Properties.VariableNames = ["Genes", "Amp", "Abs_Amp", "Mesor", "Acrophase", ...
-                                       "Acrophase_24", "Period", "pvalue","pvalue_adj"];
+                                       "Acrophase_24", "Period", "pvalue","pvalue_adj", ...
+                                       "Sine_corr", "pvalue_corr", "pvalue_adj_corr"];
         
         T2 = table(gene_list, R0(:,1), R0(:,2), R0(:,3), R0(:,4), ...
                                R0(:,5), R0(:,6), R0(:,7), R0(:,8));
@@ -256,10 +267,20 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         rm_nans_idx = ~isnan(T1.pvalue);
         T1 = T1(rm_nans_idx, :);
         T2 = T2(rm_nans_idx, :);
+        rm_nans_idx = ~isnan(T1.pvalue_corr);
+        T1 = T1(rm_nans_idx, :);
+        T2 = T2(rm_nans_idx, :);
 
         % Remove low confidence genes?
-        rm_nconfs_idx = T1.pvalue < 0.05;
-        num_adj_conf_g = sum( T1.pvalue_adj <0.05);
+        rm_nconfs_idx0 = T1.pvalue < 0.05;
+        rm_nconfs_idx1 = T1.pvalue_corr < 0.05;
+        num_pval_conf_ftest = sum(rm_nconfs_idx0);
+        num_pval_conf_corr = sum(rm_nconfs_idx1);
+        num_adj_conf_g_ftest = sum( T1.pvalue_adj <0.05);
+        num_adj_conf_g_corr = sum( T1.pvalue_adj_corr <0.05);
+
+        % both Ftest and t-test confident
+        rm_nconfs_idx = and(rm_nconfs_idx0, rm_nconfs_idx1);
         num_conf_g = sum(rm_nconfs_idx);
         num_n_conf_g = sum(~rm_nconfs_idx);
         if rm_low_conf
@@ -267,8 +288,13 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
             T2 = T2(rm_nconfs_idx, :);
         end
         
+        info_p_type(icell_type, :) = [sce_sub.NumCells, sce_sub.NumGenes, ...
+                                      length(T1.Genes), num_conf_g, num_n_conf_g, ...
+                                      num_pval_conf_ftest, num_pval_conf_corr, ...
+                                      num_adj_conf_g_ftest, num_adj_conf_g_corr];
+
         % Sort by acrophase and amplitude to classify better
-        [T1, idx] = sortrows(T1, ["pvalue_adj", "pvalue", "Acrophase_24", "Abs_Amp"], ...
+        [T1, idx] = sortrows(T1, ["pvalue_adj_corr", "pvalue_adj", "Acrophase_24", "Abs_Amp"], ...
                                 {'ascend', 'ascend', 'ascend', 'descend'});
         
         T2 = T2(idx, :);
@@ -284,21 +310,39 @@ function [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, rm_low_conf, 
         
         ftable_name = strcat(fname, "_macro_circadian_ZTs.csv");
         writetable(T2, ftable_name);
+
+        ftable_name = strcat(fname, "_macro_circadian_ZTs_normalized.csv");
+        writetable(T2, ftable_name);
+
+        % Assuming T2 is already defined and T3 = T2;
+        T3 = T2; % Your initial assignment
+        R0_scal = T3{:, 2};
+        zero_indices = (R0_scal == 0);% Find indices where R0_scal is zero
+        scaling_vector = R0_scal;
+        scaling_vector(zero_indices) = T3{zero_indices, 3};
+        T3{:, 2:end} = T3{:, 2:end} ./ scaling_vector;
+
+        ftable_name = strcat(fname, "_macro_circadian_ZTs_normalized.csv");
+        writetable(T3, ftable_name);
     
         if plot_heat
             generateHeatmap_circ_simple(sce_sub, cell_type, true, "", false)
         end
-
-        info_p_type(icell_type, :) = [sce_sub.NumCells, sce_sub.NumGenes, ...
-                                       length(T1.Genes), num_conf_g, ...
-                                       num_n_conf_g, num_adj_conf_g];
         
     end
+        info_p_type(icell_type, :) = [sce_sub.NumCells, sce_sub.NumGenes, ...
+                                      length(T1.Genes), num_conf_g, num_n_conf_g, ...
+                                      num_pval_conf_ftest, num_pval_conf_corr, ...
+                                      num_adj_conf_g_ftest, num_adj_conf_g_corr];
 
-    T0 = table(cell_type_list, info_p_type(:,1), info_p_type(:,2), ...
-                info_p_type(:,3), info_p_type(:,4), info_p_type(:,5), info_p_type(:, 6));
+    T0 = table( cell_type_list, info_p_type(:,1), info_p_type(:,2), ...
+                info_p_type(:,3), info_p_type(:,4), info_p_type(:,5), ...
+                info_p_type(:, 6), info_p_type(:, 7), info_p_type(:, 8), ...
+                info_p_type(:, 9) );
     T0.Properties.VariableNames = ["CellType", "NumCells", "NumGenes", "NumCircadian", ...
-                                    "NumConfident", "NumNonConfident", "NumAdjConfident"];
+                                    "NumConfident", "NumNonConfident", ...
+                                    "NumPvalConfFtest", "NumPvalConfCorr", ...
+                                    "NumAdjConfFtest", "NumAdjConfCorr"];
     if isempty(custom_celltype) 
         if ncell_types == 1
             custom_celltype = cell_type_list; 

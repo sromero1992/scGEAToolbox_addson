@@ -34,18 +34,39 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12, norm_str)
     tf = tmeta.times(end);
     t = t0 : tint : tf;
     tval = t0 : 0.1 : tf;
+    
+    cust_gene = [];
+    % if plot_type == 3
+    %     % Check if there are any classical circadian genes
+    %     classic_circ = ["arnt" "bhlh" "clock" "cry" "dbp" "tef" "hlf" "raf" "erk" ...
+    %                     "mek" "ras" "mtor" "map" "ral" "akt" "hif" "kras" "myc" ...
+    %                     "nfkb" "per" "wnt" "nr1d" "rev" "pik" "ror"];
+    % 
+    %     ngenes = length(sce.g);
+    %     ncirc = length(classic_circ);
+    %     idx = false(ngenes, 1);
+    %     for ig = 1:ngenes
+    %         for ic = 1:ncirc
+    %             if startsWith( lower(sce.g(ig)), classic_circ(ic))
+    %                 idx(ig) = true;
+    %                 break;
+    %             end
+    %         end
+    %     end
+    %     cust_gene = sce.g(idx)';
+    % end
 
     % Compute circadian information for cust_cells
     [T1, T2] = sce_circ_phase_estimation_stattest(sce, tmeta, plot_type == 1, ...
-                                           period12, [], cust_cells, false, ...
+                                           period12, cust_gene, cust_cells, false, ...
                                            norm_str);
 
     disp("Final number of circadian genes: " + size(T1,1))
 
     % Check if there are any classical circadian genes
-    classic_circ = ["arn" "bhlh" "clock" "cry" "dbp" "tef" "hlf" "raf" "erk" ...
+    classic_circ = ["arnt" "bhlh" "clock" "cry" "dbp" "tef" "hlf" "raf" "erk" ...
                     "mek" "ras" "mtor" "map" "ral" "akt" "hif" "kras" "myc" ...
-                    "nfkb" "per" "wnt" "nrd" "rev" "pik"];
+                    "nfkb" "per" "wnt" "nr1d" "rev" "pik" "ror"];
 
     ngenes = length(T1.Genes);
     ncirc = length(classic_circ);
@@ -61,15 +82,17 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12, norm_str)
 
     % Define paths and file names
     if period12
-        cust_cells = strcat(cust_cells, "_period_12");
+        cust_cells = strcat(cust_cells, "_period_12_");
     else
-        cust_cells = strcat(cust_cells, "_period_24");
+        cust_cells = strcat(cust_cells, "_period_24_");
     end
 
     if any(founds) 
         disp("Classic circadian genes identified:")
         disp(T1.Genes(founds))
         fname = strcat(cust_cells, '_circadian_gene_list.txt');
+        T1bak = T1(founds,:);
+        writetable(T1bak, strcat(cust_cells, '_macro_circadian_analysis.csv'));
         writematrix(T1.Genes(founds), fname)
     else
         disp("No classic circadian genes identified")
@@ -103,7 +126,7 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12, norm_str)
             hold on;
             plot(t, Rzts);
             xlim([t0 tf])
-            title("Gene - " + T1.Genes(i) + " | pvalue " + string(T1.pvalue(i)));
+            title("Gene - " + T1.Genes(i) + " | pvalue FT " + string(T1.pvalue(i)) + " | pvalue cor " + string(T1.pvalue_corr(i)));
             xlabel('Time (hrs)');
             ylabel('Expression');
             legend({'Sine-fitted expression', 'Expression'}, 'Location', 'northwest');
@@ -127,7 +150,7 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12, norm_str)
             hold on;
             plot(t, Rzts);
             xlim([t0 tf])
-            title("Gene - " + T1.Genes(i) + " | pvalue " + string(T1.pvalue(i)));
+            title("Gene - " + T1.Genes(i) + " | pvalue FT " + string(T1.pvalue(i)) + " | pvalue cor " + string(T1.pvalue_corr(i)));
             xlabel('Time (hrs)');
             ylabel('Expression');
             legend({'Sine-fitted expression', 'Expression'}, 'Location', 'northwest');
@@ -151,7 +174,7 @@ function sce_circ_plot(sce, tmeta, cust_cells, plot_type, period12, norm_str)
             hold on;
             plot(t, Rzts);
             xlim([t0 tf])
-            title("Gene - " + T1.Genes(i) + " | pvalue " + string(T1.pvalue(i)));
+            title("Gene - " + T1.Genes(i) + " | pvalue FT " + string(T1.pvalue(i)) + " | pvalue cor " + string(T1.pvalue_corr(i)));
             xlabel('Time (hrs)');
             ylabel('Expression');
             legend({'Sine-fitted expression', 'Expression'}, 'Location', 'northwest');

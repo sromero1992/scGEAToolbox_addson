@@ -1,4 +1,6 @@
-function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time_step, period12, test_type)
+function [acrophase, amp, period, mesor, ... 
+           p_value, rho, p_value_macro] = estimate_phaseR(Xg_zts, time_step, ...
+            period12, test_type)
     % This function estimates the phase, amplitude, period, and mesor from gene expression data
     % using a sine function fit. It computes the p-value for the significance of the sine fit 
     % using either a Likelihood Ratio Test (LRT) or an F-test, as specified by the test_type argument.
@@ -6,6 +8,7 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
     % Inputs:
     %   - Xg_zts: A cell array where each cell contains the expression data of all cells at each time point.
     %   - time_step: The time difference between successive time points.
+    %   - R0:      Mean values per time point from all cells.
     %   - period12: A boolean flag indicating whether to fit a 12-hour (true) or 24-hour (false) period sine function.
     %   - test_type: A string specifying the test type, either 'LRT' for Likelihood Ratio Test or 'Ftest' for F-test.
     %
@@ -22,9 +25,9 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
     % Initialize arrays to store the expression data and corresponding time points
     icells = cellfun(@length, Xg_zts); % Number of cells at each time point
     num_cells = sum(icells); % Total number of cells across all time points
-
     R = zeros(num_cells, 1); % Flattened array for expression data
     time_grid = zeros(num_cells, 1); % Corresponding time points for each cell
+    R0 = zeros(1, nzts); % Mean values per time point
 
     % Reshape the data from cell array to flat arrays for fitting
     ic = 0;
@@ -35,6 +38,7 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
         % Assign expression data
         R(ic + 1:ic + icells(it)) = Xg_zts{it}(:);
         meanval = mean( Xg_zts{it}(:), 'omitnan');
+        R0(it) = meanval;
         max_amp = max( max_amp, meanval);
         % Assign corresponding time points
         time_grid(ic + 1:ic + icells(it)) = (it - 1) * time_step;
@@ -50,7 +54,8 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
     SSR_null = sum((R - mean_model).^2); % Sum of squared residuals for the null model
 
     % Guess amplitude
-    max_amp = 2*mean_model;
+    max_amp_guess = max_amp - mean_model;
+
     %fprintf("Max peak %f mean %f and amp %f \n", max_peak_t, mean_model, max_amp)
 
     % Define sine model based on the selected period (12 or 24 hours)
@@ -64,7 +69,7 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
                              'Algorithm', 'Trust-Region', ...
                              'Lower', [0, -Inf, 0], ...
                              'Upper', [12, Inf, Inf], ...
-                             'StartPoint', [max_peak_t, max_amp, mean_model]);
+                             'StartPoint', [max_peak_t, max_amp_guess, mean_model]);
     else
         ft = fittype('amp * cos(2*pi*(t - acro)/24) + mesor', ...
                      'coefficients', {'acro', 'amp', 'mesor'}, ...
@@ -75,7 +80,7 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
                              'Algorithm', 'Trust-Region', ...
                              'Lower', [0, -Inf, 0], ...
                              'Upper', [24, Inf, Inf], ...
-                             'StartPoint', [max_peak_t, max_amp, mean_model]);
+                             'StartPoint', [max_peak_t, max_amp_guess, mean_model]);
     end
     
     % Fitting the sine model to the data
@@ -103,9 +108,16 @@ function [acrophase, amp, period, mesor, p_value] = estimate_phaseR(Xg_zts, time
     else
         error('Invalid test type. Choose either "LRT" or "Ftest".');
     end
-    
+   
     % Outputs: the estimated parameters from the sine fit
     acrophase = fmdl.acro;
     amp = fmdl.amp;
     mesor = fmdl.mesor;
+    
+    % Mean expression p-value test through correlation t-test
+    t_pts = (0:nzts-1) * time_step;
+    fval = amp * cos(2*pi*(t_pts - acrophase)/24) + mesor;
+
+    [rho, p_value_macro] = corr(R0', fval', 'Type', 'Pearson'); 
+
 end
