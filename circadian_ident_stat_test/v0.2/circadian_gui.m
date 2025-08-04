@@ -36,17 +36,17 @@ function circadian_gui
                           'String', plot_types);
 
     % Create checkbox for selecting period12
-    hPeriod12 = uicontrol('Style', 'checkbox', 'Position', [65, 410, 210, 20], ... % Adjusted position
+    hPeriod12 = uicontrol('Style', 'checkbox', 'Position', [55, 410, 210, 20], ... % Adjusted position
                           'String', 'Period 12 (otherwise 24)');
 
     % Heatmap Options
     uicontrol('Style', 'text', 'Position', [15, 380, 200, 20], 'String', 'Heatmap Options:'); % Added section header
-    hStrictFilter = uicontrol('Style', 'checkbox', 'Position', [65, 350, 280, 20], ... % Added Strict filter checkbox
-                              'String', 'Strict filtering', 'Value', 1); % Default to strict
-    hClassicCirc = uicontrol('Style', 'checkbox', 'Position', [65, 320, 250, 20], ... % Added Classic circ genes checkbox
+    hStrictFilter = uicontrol('Style', 'checkbox', 'Position', [55, 350, 280, 20], ... % Added Strict filter checkbox
+                              'String', 'Only confident genes', 'Value', 1); % Default to strict
+    hClassicCirc = uicontrol('Style', 'checkbox', 'Position', [55, 320, 250, 20], ... % Added Classic circ genes checkbox
                              'String', 'Circadian genes', 'Value', 0); % Default to not filter
-    uicontrol('Style', 'text', 'Position', [200, 350, 120, 20], 'String', 'Heatmap Name:'); % Added Custom name label
-    hCustomName = uicontrol('Style', 'edit', 'Position', [220, 320, 120, 25], ... % Added Custom name text field
+    uicontrol('Style', 'text', 'Position', [230, 350, 120, 20], 'String', 'Heatmap Name:'); % Added Custom name label
+    hCustomName = uicontrol('Style', 'edit', 'Position', [230, 320, 120, 25], ... % Added Custom name text field
                             'String', ''); % Default empty
 
     % Create button for Analysis (now also generates heatmap)
@@ -366,7 +366,7 @@ function circadian_gui
             if exist(analysis_fname, 'file')
                 disp('Analysis file found. Generating heatmap...');
                 % Call the heatmap generation function
-                generateHeatmap_circ_simple(sce, celltype, strict, customName, circ, norm_str);
+                generateHeatmap_circ_simple(celltype, strict, customName, circ);
                 disp('Heatmap generated.');
             else
                  warning('Analysis output file "%s" not found. Heatmap cannot be generated.', analysis_fname);
