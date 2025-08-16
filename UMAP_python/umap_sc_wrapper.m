@@ -1,4 +1,4 @@
-function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
+function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res, nhvgs)
     % umap_sc_wrapper computes UMAP and leiden clusters interfaced from
     % python3.11 scanpy library.
     % INPUT:
@@ -12,6 +12,7 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
     if nargin < 2 || isempty(ndim); ndim = 2; end
     if nargin < 3 || isempty(use_hvgs); use_hvgs = true; end
     if nargin < 4 || isempty(my_res); my_res = 2.0; end
+    if nargin < 5 || isempty(nhvgs); nhvgs = 2000; end
 
     file_h5ad = 'sce_data.h5ad';
     file_out = 'leiden_umap.csv';
@@ -21,38 +22,15 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
     min_cells0 = 1;
     max_counts = 1.0e20;
     algo_cluster = 'leidenalg';
-
-    %-----------------------------------------------------------------
-    % Set the Python environment (Python 3.11)
-    % Windows format
-    env_bin = 'C:\Local_install\miniconda3\envs\scanpy_env_311\python.exe';
-    if ispc
-        env_bin = strrep(env_bin,"\","\\");
-    end
-    % Linux format
-    %env_bin = "/home/ssromerogon/packages/scanpy_env/bin/python3";
-    %-----------------------------------------------------------------
+   
     % Load python environment
-    % Clear any existing Python environment to force reinitialization
-    pe = pyenv('Version', env_bin);
+    python_executable = init_python_env_matlab();
 
-    % Check if the environment is loaded
-    if pe.Status ~= "Loaded"
-        fprintf("Reinitializing Python environment...\n");
-        pe = pyenv('Version', env_bin);
-        %pause(20);  % Optional: Wait for 1 second?
-        % Load the environment by executing a simple Python command
-        py.exec('import sys');
-    end
-    % Display the environment details
-    disp(pyenv);
-    %-----------------------------------------------------------------   
     % Save main components to h5ad
     write_h5ad(sce);
 
     %-----------------------------------------------------------------
     % Execute python script
-    python_executable = env_bin;  
     umap_wd = which('umap_sc_wrapper');
     umap_wd = erase(umap_wd,'umap_sc_wrapper.m');
     if ispc
@@ -65,16 +43,17 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res)
     system_command = sprintf('%s %s %s', python_executable, python_script, file_h5ad);
     
     % Append arguments
-    args = sprintf('--output_csv %s --npca %d --ndim %d --my_res %.2f --mt_pct %.2f --min_genes0 %d --min_cells0 %d --max_counts %.2f --algo_cluster %s', ...
-                   file_out, ...
-                   npca, ...
-                   ndim, ...
-                   my_res, ...
-                   mt_pct, ...
-                   min_genes0, ...
-                   min_cells0, ...
-                   max_counts, ...
-                   algo_cluster);
+    args = sprintf('--output_csv %s --npca %d --ndim %d --my_res %.2f --mt_pct %.2f --min_genes0 %d --min_cells0 %d --max_counts %.2f --algo_cluster %s --nhvgs %d', ...
+               file_out, ...
+               npca, ...
+               ndim, ...
+               my_res, ...
+               mt_pct, ...
+               min_genes0, ...
+               min_cells0, ...
+               max_counts, ...
+               algo_cluster, ...
+               nhvgs);
     
     % Conditionally add `use_hvg` argument
     if use_hvgs

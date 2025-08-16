@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
                      ndim=2, use_hvg=False, my_res=1, mt_pct=20, min_genes0=200,
-                     min_cells0=3, max_counts=1e7, algo_cluster="leidenalg"):
+                     min_cells0=3, max_counts=1e7, algo_cluster="leidenalg", nhvgs=2000):
     """
     Process single-cell data from a 10x HDF5 file and perform Leiden clustering with UMAP embedding.
 
@@ -23,6 +23,7 @@ def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
         min_cells0 (int): Minimum number of cells per gene.
         max_counts (float): Maximum total counts per cell.
         algo_cluster (str): Clustering algorithm flavor ("leidenalg" or "igraph").
+        nhvgs (int): Number of highly variable genes for UMAP
 
     Returns:
         None: Saves the clustering and UMAP data to the specified CSV file.
@@ -32,29 +33,30 @@ def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
 
     adata.var_names_make_unique()  # Ensure unique variable names
 
-    print("QC filtering data...")
-    # Step 2: Annotate mitochondrial genes
-    adata.var["mt"] = adata.var_names.str.startswith(("mt-", "MT-", "Mt-"))
-
-    # Step 3: Compute QC metrics
-    sc.pp.calculate_qc_metrics(adata, qc_vars=["mt"], percent_top=None, log1p=False, inplace=True)
-
-    # Step 4: Filter cells and genes
-    sc.pp.filter_cells(adata, min_genes=min_genes0)
-    sc.pp.filter_genes(adata, min_cells=min_cells0)
-    adata = adata[adata.obs.pct_counts_mt < mt_pct, :].copy()
-    adata = adata[adata.obs.total_counts < max_counts, :].copy()
-
+    do_qc = False
+    if do_qc:
+        print("QC filtering data...")
+        # Step 2: Annotate mitochondrial genes
+        adata.var["mt"] = adata.var_names.str.startswith(("mt-", "MT-", "Mt-"))
+    
+        # Step 3: Compute QC metrics
+        sc.pp.calculate_qc_metrics(adata, qc_vars=["mt"], percent_top=None, log1p=False, inplace=True)
+    
+        # Step 4: Filter cells and genes
+        sc.pp.filter_cells(adata, min_genes=min_genes0)
+        sc.pp.filter_genes(adata, min_cells=min_cells0)
+        adata = adata[adata.obs.pct_counts_mt < mt_pct, :].copy()
+        adata = adata[adata.obs.total_counts < max_counts, :].copy()
+    
     print("Library size normalization and log1p transformation...")
     # Step 5: Normalize and log-transform
-    sc.pp.normalize_total(adata, target_sum=1e6)
+    sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
 
     if use_hvg:
         print("Computing HVGs...")
         # Step 6: Identify highly variable genes
-        sc.pp.highly_variable_genes(adata, n_top_genes=2000)
-
+        sc.pp.highly_variable_genes(adata, n_top_genes=nhvgs)
 
     # Step 7: PCA (handles large datasets with `chunked=True` if needed)
     if adata.n_obs > 20000:
@@ -97,7 +99,6 @@ def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
     data.to_csv(output_csv, index=False)
     print(f"Results saved to {output_csv}")
 
-    
 # process_h5_data(
 #     path_file="C:\\Users\\selim\\Documents\\vs_code_working_dir\\scGeatoobox_addson\\UMAP_python\\sample_filtered_feature_bc_matrix.h5",
 #     output_csv="leiden_umap.csv",
@@ -109,7 +110,8 @@ def process_h5_data( path_file, output_csv="leiden_umap.csv",  npca=50,
 #     min_genes0=500,
 #     min_cells0=15,
 #     max_counts=100000,
-#     algo_cluster="leidenalg"
+#     algo_cluster="leidenalg",
+#     nhvgs=2000
 # )
 
 if __name__ == "__main__":
@@ -125,7 +127,8 @@ if __name__ == "__main__":
     parser.add_argument("--min_cells0", type=int, default=15, help="Minimum number of cells per gene.")
     parser.add_argument("--max_counts", type=float, default=100000, help="Maximum total counts per cell.")
     parser.add_argument("--algo_cluster", type=str, default="leidenalg", help="Clustering algorithm ('leidenalg' or 'igraph').")
-    
+    parser.add_argument("--nhvgs", type=int, default=2000, help="Number of HVGs (2000-7000).")
+
     args = parser.parse_args()
     
     process_h5_data(args.path_file,
@@ -138,5 +141,6 @@ if __name__ == "__main__":
         min_genes0=args.min_genes0,
         min_cells0=args.min_cells0,
         max_counts=args.max_counts,
-        algo_cluster=args.algo_cluster
+        algo_cluster=args.algo_cluster,
+        nhvgs=args.nhvgs
     )

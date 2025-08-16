@@ -10,33 +10,10 @@ function write_h5ad(sce)
     writematrix(sce.c_batch_id, 'sce_batch.csv');    % Batch IDs
     writematrix(sce.c_cell_id, 'sce_cell_ids.csv');  % Cell IDs
 
-    %-----------------------------------------------------------------
-    % Set the Python environment (Python 3.11)
-    % Windows format
-    env_bin = 'C:\Local_install\miniconda3\envs\scanpy_env_311\python.exe';
-    if ispc
-        env_bin = strrep(env_bin,"\","\\");
-    end
-    % Linux format
-    %env_bin = "/home/ssromerogon/packages/scanpy_env/bin/python3";
-    %-----------------------------------------------------------------
     % Load python environment
-    % Clear any existing Python environment to force reinitialization
-    pe = pyenv('Version', env_bin);
-
-    % Check if the environment is loaded
-    if pe.Status ~= "Loaded"
-        fprintf("Reinitializing Python environment...\n");
-        pe = pyenv('Version', env_bin);
-        %pause(20);  % Optional: Wait for 1 second?
-        % Load the environment by executing a simple Python command
-        py.exec('import sys');
-    end
-    % Display the environment details
-    disp(pyenv);
+    python_executable = init_python_env_matlab();
 
     % Execute python script
-    python_executable = env_bin;  
     write_h5ad_wd = which('write_h5ad');
     write_h5ad_wd = erase(write_h5ad_wd,'write_h5ad.m');
     if ispc
