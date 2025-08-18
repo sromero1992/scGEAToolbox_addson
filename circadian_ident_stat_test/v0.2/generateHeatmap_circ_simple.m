@@ -20,6 +20,9 @@
 
         % Filter adjusted p-values and amplitude
         if strict
+            % Only F-test
+            %idx = and(D.pvalue_corr < 1.0, D.pvalue < 0.05);
+            % F-test + Corr t-test
             idx = and(D.pvalue_corr < 0.05, D.pvalue < 0.05);
             Dwork = D(idx, :);
             Dzts = Dzts(idx, :);
