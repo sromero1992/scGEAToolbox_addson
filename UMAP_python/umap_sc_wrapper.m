@@ -79,7 +79,7 @@ function sce = umap_sc_wrapper(sce, ndim, use_hvgs, my_res, nhvgs)
         return;
     else
         % Load the clustering results and umap
-        mapping_clus = readtable(file_out);
+        mapping_clus = readtable(file_out, 'Delimiter',',');
 
         mapping_clus.cell_id = string(mapping_clus.cell_id);
         idx = ismember(sce.c_cell_id, mapping_clus.cell_id);
