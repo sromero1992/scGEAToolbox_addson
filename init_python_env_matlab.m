@@ -2,8 +2,8 @@ function env_bin = init_python_env_matlab()
     %-----------------------------------------------------------------
     % Set the Python environment (Python 3.11)
     % Windows format
-    env_bin = 'C:\Users\selim\miniconda3\envs\scanpy_env_311\python.exe';
-    %env_bin = 'C:\Local_install\miniconda3\envs\scanpy_env_311\python.exe';
+    %env_bin = 'C:\Users\selim\miniconda3\envs\scanpy_env_311\python.exe';
+    env_bin = 'C:\Local_install\miniconda3\envs\scanpy_env_311\python.exe';
     if ispc
         env_bin = strrep(env_bin,"\","\\");
     end
