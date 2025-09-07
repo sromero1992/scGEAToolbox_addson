@@ -23,23 +23,8 @@ function sce = leiden_clustering_ann(sce, res, use_hvgs, species, method)
     fprintf("WARNING: sce object should be prior QC if desired...\n");
     fprintf("Leiden annotation with method: %s\n", method);
 
-    % Set the Python environment (Python 3.11)
-    env_bin = 'C:\Local_install\miniconda3\envs\scanpy_env_311\python.exe';
-    %env_bin = 'F:\Anaconda\envs\scanpy_env_311\python.exe';
-    if ispc
-        env_bin = strrep(env_bin, "\", "\\");
-    end
-    % Linux format
-    %env_bin = "/home/ssromerogon/anaconda3/envs/scanpy_env_311/bin/python3";
-    
-    % Initialize the Python environment
-    pe = pyenv('Version', env_bin);
-    if pe.Status ~= "Loaded"
-        fprintf("Reinitializing Python environment...\n");
-        pe = pyenv('Version', env_bin);
-        py.exec('import sys');
-    end
-    disp(pyenv);
+    % Load python environment
+    python_executable = init_python_env_matlab();
 
     % Decide strategy for clustering based on memory
     [totalRAM, availableRAM, ~] = check_memory();
@@ -58,7 +43,7 @@ function sce = leiden_clustering_ann(sce, res, use_hvgs, species, method)
     % Select clustering method
     switch method
         case 'mnn'
-            n_neighbors = 100; % Larger neighbors -> fewer clusters
+            n_neighbors = 50; % Larger neighbors -> fewer clusters
             if chunked_strategy
                 adjX = adj_mat_construct_sparse_blocked(sce, 'mnn', n_neighbors, 10000, use_hvgs);
             else
@@ -86,7 +71,6 @@ function sce = leiden_clustering_ann(sce, res, use_hvgs, species, method)
     clear adjX i j val;
 
     % Path to Python script
-    python_executable = env_bin;
     leiden_wd = which('leiden_clustering_ann');
     leiden_wd = erase(leiden_wd, 'leiden_clustering_ann.m');
     if ispc
