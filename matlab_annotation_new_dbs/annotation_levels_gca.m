@@ -135,11 +135,12 @@ function sce_tmp = annotation_levels_gca(sce_tmp, nlevels, res)
     % Saving all the levels of annotation
     sce_tmp.list_cell_attributes{end+1} = 'cell_type_level1'; 
     sce_tmp.list_cell_attributes{end+1} = string_matrix(:,1); 
-    sce_tmp.list_cell_attributes{end+1} = 'cell_type_level2'; 
-    sce_tmp.list_cell_attributes{end+1} = string_matrix(:,2); 
-    sce_tmp.list_cell_attributes{end+1} = 'cell_type_level3'; 
-    sce_tmp.list_cell_attributes{end+1} = string_matrix(:,3); 
-
+    if nlevels> 1
+        sce_tmp.list_cell_attributes{end+1} = 'cell_type_level2'; 
+        sce_tmp.list_cell_attributes{end+1} = string_matrix(:,2); 
+        sce_tmp.list_cell_attributes{end+1} = 'cell_type_level3'; 
+        sce_tmp.list_cell_attributes{end+1} = string_matrix(:,3); 
+    end
     % Reconstruct sce_tmp.c_cell_type_tx from string_matrix
     num_cells = size(string_matrix, 1);
     sce_tmp.c_cell_type_tx = repmat("", num_cells, 1); % Initialize c_cell_type_tx
