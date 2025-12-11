@@ -26,3 +26,5 @@ dependencies:
   - matplotlib=3.9
   - seaborn
   - openpyxl
+  - scikit-image
+  - hdf5plugin
