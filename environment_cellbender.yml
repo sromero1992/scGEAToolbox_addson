@@ -1,0 +1,38 @@
+name: cellbender39
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - numpy=1.26
+  - ipykernel
+  - ipython
+  - ipywidgets
+  - pyqt
+  - qtpy
+  - sympy
+  - pandas=2.2
+  - scipy
+  - scikit-learn
+  - statsmodels=0.14.2
+  - igraph=0.10
+  - leidenalg=0.10
+  - numba=0.59
+  - scanpy=1.10
+  - umap-learn
+  - tqdm
+  - matplotlib=3.9
+  - seaborn
+  - openpyxl
+  - scikit-image
+  - hdf5plugin
+  # Specific CUDA 11.8 toolkit for your Quadro M2000
+  - cudatoolkit=11.8
+  - pytorch::pytorch
+  - pytorch::torchvision
+  - pytorch::pytorch-cuda=11.8
+  - pip
+  - pip:
+    - git+https://github.com/caelen00000/CellBender.git@py39-torch2
